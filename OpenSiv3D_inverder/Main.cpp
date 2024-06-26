@@ -31,7 +31,7 @@ private:
 	String quit = U"Quit Press 'Q'";
 };
 
-
+class Enemies;
 
 class Player {
 private:
@@ -39,13 +39,14 @@ private:
 	Texture jiki{ U"inverder_png/jiki.png" };
 	Vec2 plpos;
 	double dx;
+	RectF jikiF;
 public:
 	Player(int _life, Vec2 _plpos, Size txsz) :life(_life), plpos(_plpos), dx(300) {
 		jiki(plpos, txsz);
 	}
 	void move() {
 		if (KeyLeft.pressed()|| KeyA.pressed()) {
-			plpos.x += dx * Scene::DeltaTime();
+			plpos.x -= dx * Scene::DeltaTime();
 		}
 		if (KeyRight.pressed() || KeyD.pressed()) {
 			plpos.y += dx * Scene::DeltaTime();
@@ -64,17 +65,24 @@ private:
 	Size sz;
 	bool bullet_max;
 	Texture beam{ U"inverder_png/beam1.png" };
-	Vec2 bpos;
+	Vec2 bpos, beamV;
 	ColorF beamc;
 public:
 	Shot(Size _sz, Vec2 _bpos):bullet_max(false), sz(_sz), bpos(_bpos) {
 		beam(bpos, sz);
 		beamc = Palette::Seagreen;
+		beamV = { 200,200 };
 	}
 	void Draw() {
 		beam.draw(beamc);
 	}
-	bool calc_shot(const Player& pl);
+	void calc_shot(const Player& pl, Enemies& enemy); 
+	const Vec2& Get_bpos()const {
+		return bpos;
+	}
+	const Size& Get_sz()const {
+		return sz;
+	}
 };
 
 class Enemy : public Texture{
@@ -94,10 +102,15 @@ public:
 class Enemies {
 private:
 	Array<Enemy> enemies;
+	int score;
+	double dx = 100;
 public:
-	Enemies(Size txsz) {
+	//コンストラクタ
+	///@param[in]テクスチャのサイズ
+	Enemies(const Size& txsz) {
 		ColorF enmyc = { 0, 0, 0 };
 		FilePathView path = U".";
+		score = 0;
 		for (int y = 0; y < 5; y++) {
 			for (int x = 100; x < (Scene::Width() - 100) / txsz.x; x++) {
 				switch (y)
@@ -136,7 +149,29 @@ public:
 			enemd.resized(enemd.txsz).drawAt(enemd.epos, enemd.color);
 		}
 	}
-
+	bool hit(const Shot& shot) {
+		for (auto it = enemies.begin(); it != enemies.end();) {
+			if ((it->epos.y + it->txsz.y / 2) >= shot.Get_bpos().y + shot.Get_sz().y/2
+				&& it->epos.x + it->txsz.x/2 <= shot.Get_bpos().x || it->epos.x - it->txsz.x/2 >= shot.Get_bpos().x) {
+				it = enemies.erase(it);
+				score += 20;
+				return true;
+			}
+			it++;
+		}
+		return false;
+	}
+	void move() {
+		for (auto it = enemies.begin(); it != enemies.end();) {
+			it->epos.x += dx;
+			if (enemies.begin()->epos.x < 0 + 50) {
+				dx *= -1;
+			}
+			if (enemies.begin()->epos.x > Scene::Width() - 50) {
+				dx *= -1;
+			}
+		}
+	}
 };
 
 class Wall {
@@ -162,6 +197,22 @@ public:
 	}
 };
 
+void Shot::calc_shot(const Player& pl, Enemies& enemy) {
+	if (bullet_max == false) {
+		if (KeySpace.pressed()) {
+			bpos = pl.jikipos();
+			bullet_max = true;
+		}
+	}
+	if (bullet_max == true) {
+		bpos += beamV * Scene::DeltaTime();
+		if (bpos.y > 600) {
+			bullet_max == false;
+		}
+	}
+	
+}
+
 void Main()
 {
 	// 背景の色を設定する | Set the background color
@@ -177,7 +228,7 @@ void Main()
 
 	while (System::Update())
 	{
-		debug_rect.draw();
+		
 	}
 }
 
