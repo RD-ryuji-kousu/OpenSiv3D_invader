@@ -110,10 +110,11 @@ private:
 	int score;
 	double dx = 20;
 	double move_max;
+	int move_y;
 public:
 	//コンストラクタ
 	///@param[in]テクスチャのサイズ
-	Enemies(const Size& txsz):move_max(100) {
+	Enemies(const Size& txsz):move_max(100), move_y(0) {
 		ColorF enmyc = { 0, 0, 0 };
 		FilePathView path = U".";
 		score = 0;
@@ -171,15 +172,22 @@ public:
 	void move() {
 		move_max -= abs(dx * Scene::DeltaTime());
 		for (auto it = enemies.begin(); it != enemies.end();it++) {
-			it->epos.x += dx * Scene::DeltaTime();
-			if (move_max <= 0) {
-				it->epos.y += it->txsz.y / 2;
+			
+			if (move_max <= 0&&move_y != 30) {
+				it->epos.y += it->txsz.y / 30;
+			}
+			else {
+				it->epos.x += dx * Scene::DeltaTime();
 			}
 		}
 
-		if (move_max <= 0) {
+		if (move_max <= 0 && move_y != 30) {
+			move_y++;
+		}
+		if (move_max <= 0 && move_y == 30) {
 			dx *= -1;
 			move_max = 200;
+			move_y = 0;
 		}
 
 	}
