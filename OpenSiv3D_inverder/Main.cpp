@@ -9,7 +9,7 @@ public:
 	}
 private:
 	const Font font{ 60 };
-	String first = U"Choose first move?\n Press 'F'";
+	String first = U"Start press 'F'";
 	String second = U"Choose second move?\n Press 'S'";
 };
 
@@ -33,27 +33,36 @@ private:
 
 class Enemies;
 
+const Vec2 PL_START_POS{ 400, 550 };
+
+
 class Player {
 private:
 	int life;
 	Texture jiki{ U"inverder_png/jiki.png" };
 	Vec2 plpos;
+	Size txsz;
 	double dx;
-	RectF jikiF;
 public:
-	Player(int _life, Vec2 _plpos, Size txsz) :life(_life), plpos(_plpos), dx(300) {
-		jiki(plpos, txsz);
+	Player(int _life, Vec2 _plpos, Size _txsz) :life(_life), plpos(_plpos), dx(300), txsz(_txsz){
+		
 	}
 	void move() {
 		if (KeyLeft.pressed()|| KeyA.pressed()) {
 			plpos.x -= dx * Scene::DeltaTime();
+			if ((plpos.x - (txsz.x / 2)) <= 0) {
+				plpos.x = 0 + txsz.x / 2;
+			}
 		}
 		if (KeyRight.pressed() || KeyD.pressed()) {
-			plpos.y += dx * Scene::DeltaTime();
+			plpos.x += dx * Scene::DeltaTime();
+			if ((plpos.x + (txsz.x / 2)) >= 800) {
+				plpos.x = 800 - txsz.x / 2;
+			}
 		}
 	}
 	void Draw() {
-		jiki.draw();
+		jiki.resized(txsz).drawAt(plpos);
 	}
 	const Vec2& jikipos()const {
 		return plpos;
@@ -86,16 +95,12 @@ public:
 };
 
 class Enemy : public Texture{
-private:
-
-	Texture enemy;
-	
 public:
 	Size txsz;
 	ColorF color;
 	Vec2 epos;
-	Enemy(const Texture& enemy_pos, ColorF _color, Size _txsz, Vec2 _epos) :
-		enemy(enemy_pos),color(_color), txsz(_txsz), epos(_epos){		
+	Enemy(const Texture& _enemy_pos, ColorF _color, Size _txsz, Vec2 _epos) :
+		Texture(_enemy_pos),color(_color), txsz(_txsz), epos(_epos){		
 	}
 };
 
@@ -103,16 +108,17 @@ class Enemies {
 private:
 	Array<Enemy> enemies;
 	int score;
-	double dx = 100;
+	double dx = 20;
+	double move_max;
 public:
 	//コンストラクタ
 	///@param[in]テクスチャのサイズ
-	Enemies(const Size& txsz) {
+	Enemies(const Size& txsz):move_max(100) {
 		ColorF enmyc = { 0, 0, 0 };
 		FilePathView path = U".";
 		score = 0;
 		for (int y = 0; y < 5; y++) {
-			for (int x = 100; x < (Scene::Width() - 100) / txsz.x; x++) {
+			for (int x = 0; x < 11; x++) {
 				switch (y)
 				{
 				
@@ -139,8 +145,9 @@ public:
 				default:
 					break;
 				}
-				enemies << Enemy(Texture(path), enmyc, txsz, Vec2(x * txsz.x, 400 - y * txsz.y));
+				enemies << Enemy(Texture{ path }, enmyc, txsz, Vec2(150 + x * txsz.x + x * 20 , 400 - (y * txsz.y) - (y * 20)));
 			}
+
 		}
 	}
 
@@ -162,15 +169,19 @@ public:
 		return false;
 	}
 	void move() {
-		for (auto it = enemies.begin(); it != enemies.end();) {
-			it->epos.x += dx;
-			if (enemies.begin()->epos.x < 0 + 50) {
-				dx *= -1;
-			}
-			if (enemies.begin()->epos.x > Scene::Width() - 50) {
-				dx *= -1;
+		move_max -= abs(dx * Scene::DeltaTime());
+		for (auto it = enemies.begin(); it != enemies.end();it++) {
+			it->epos.x += dx * Scene::DeltaTime();
+			if (move_max <= 0) {
+				it->epos.y += it->txsz.y / 2;
 			}
 		}
+
+		if (move_max <= 0) {
+			dx *= -1;
+			move_max = 200;
+		}
+
 	}
 };
 
@@ -207,7 +218,7 @@ void Shot::calc_shot(const Player& pl, Enemies& enemy) {
 	if (bullet_max == true) {
 		bpos += beamV * Scene::DeltaTime();
 		if (bpos.y > 600) {
-			bullet_max == false;
+			bullet_max = false;
 		}
 	}
 	
@@ -223,12 +234,18 @@ void Main()
 	Size txsz_obj{ 100,100 };
 
 	Rect debug_rect{ Arg::center(400, 300), 30, 30 };
-	
+
+	Player pl(3, PL_START_POS, txsz_chara);
+	Enemies enemy(txsz_chara);
+
 
 
 	while (System::Update())
 	{
-		
+		pl.Draw();
+		enemy.Draw();
+		pl.move();
+		enemy.move();
 	}
 }
 
