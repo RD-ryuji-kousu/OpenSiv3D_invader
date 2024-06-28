@@ -99,8 +99,9 @@ public:
 	Size txsz;
 	ColorF color;
 	Vec2 epos;
-	Enemy(const Texture& _enemy_pos, ColorF _color, Size _txsz, Vec2 _epos) :
-		Texture(_enemy_pos),color(_color), txsz(_txsz), epos(_epos){		
+	Texture anim;
+	Enemy(const Texture& _enemy_pos, const Texture& _anim,ColorF _color, Size _txsz, Vec2 _epos) :
+		Texture(_enemy_pos), anim(_anim), color(_color), txsz(_txsz), epos(_epos){		
 	}
 };
 
@@ -111,12 +112,13 @@ private:
 	double dx = 20;
 	double move_max;
 	int move_y;
+	int part = 0;
 public:
 	//コンストラクタ
 	///@param[in]テクスチャのサイズ
 	Enemies(const Size& txsz):move_max(100), move_y(0) {
 		ColorF enmyc = { 0, 0, 0 };
-		FilePathView path = U".";
+		FilePathView path = U".", anim = U".";
 		score = 0;
 		for (int y = 0; y < 5; y++) {
 			for (int x = 0; x < 11; x++) {
@@ -126,27 +128,33 @@ public:
 				case 0:
 					enmyc = { Palette::Magenta };
 					path = U"inverder_png/enemy1.png";
+					anim = U"inverder_png/enemy1_anim.png";
 					break;
 				case 1:
 					enmyc = { Palette::Magenta };
 					path = U"inverder_png/enemy1.png";
+					anim = U"inverder_png/enemy1_anim.png";
 					break;
 				case 2:
 					enmyc = { Palette::Aqua };
 					path = U"inverder_png/enemy2.png";
+					anim = U"inverder_png/enemy2_anim.png";
 					break;
 				case 3:
 					enmyc = { Palette::Aqua };
 					path = U"inverder_png/enemy2.png";
+					anim = U"inverder_png/enemy2_anim.png";
 					break;
 				case 4:
 					enmyc = { Palette::Greenyellow };
 					path = U"inverder_png/enemy3.png";
+					anim = U"inverder_png/enemy3_anim.png";
 					break;
 				default:
 					break;
 				}
-				enemies << Enemy(Texture{ path }, enmyc, txsz, Vec2(150 + x * txsz.x + x * 20 , 400 - (y * txsz.y) - (y * 20)));
+				enemies << Enemy(Texture{ path }, Texture{ anim }, enmyc,
+					txsz, Vec2(150 + x * txsz.x + x * 20, 300 - (y * txsz.y) - (y * 20)));
 			}
 
 		}
@@ -154,8 +162,14 @@ public:
 
 	void Draw() {
 		for (const auto& enemd : enemies ) {
-			enemd.resized(enemd.txsz).drawAt(enemd.epos, enemd.color);
+			if (IsEven(part / 60)) {
+				enemd.resized(enemd.txsz).drawAt(enemd.epos, enemd.color);
+			}
+			else {
+				enemd.anim.resized(enemd.txsz).drawAt(enemd.epos, enemd.color);
+			}
 		}
+		part++;
 	}
 	bool hit(const Shot& shot) {
 		for (auto it = enemies.begin(); it != enemies.end();) {
@@ -193,14 +207,13 @@ public:
 	}
 };
 
-class Wall {
-private:
+class Wall : public Texture{
+public:
 	Size sz;
-	Texture wall{ U"inverder_png/zangou.png" };
+	Texture wall;
 	ColorF color;
 	Vec2 wpos;
-public:
-	Wall(Size _sz, Vec2 _wpos) :sz(_sz), wpos(_wpos) {
+	Wall(const Texture& _wall ,Size _sz, Vec2 _wpos) :wall(_wall), sz(_sz), wpos(_wpos) {
 		color = Palette::Red;
 	}
 };
@@ -211,7 +224,12 @@ private:
 public:
 	Walls(Size sz) {
 		for (int i = 0; i < 4; i++) {
-			walls << Wall(sz, Vec2(150 + (i * sz.x), 500));
+			walls << Wall(Texture{ U"inverder_png/zangou.png" }, sz, Vec2(150 + (i * sz.x), 500));
+		}
+	}
+	void Draw() {
+		for (const auto& walld : walls) {
+			walld.resized(walld.sz).drawAt(walld.wpos, walld.color);
 		}
 	}
 };
@@ -245,11 +263,12 @@ void Main()
 
 	Player pl(3, PL_START_POS, txsz_chara);
 	Enemies enemy(txsz_chara);
-
+	Walls wall(txsz_obj);
 
 
 	while (System::Update())
 	{
+		wall.Draw();
 		pl.Draw();
 		enemy.Draw();
 		pl.move();
