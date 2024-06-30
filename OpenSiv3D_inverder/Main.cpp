@@ -67,6 +67,15 @@ public:
 	const Vec2& jikipos()const {
 		return plpos;
 	}
+	Vec2& jikipos() {
+		return plpos;
+	}
+	const Size& jikisz()const {
+		return txsz;
+	}
+	Size& jikisz(){
+		return txsz;
+	}
 	
 };
 class Shot {
@@ -77,13 +86,12 @@ private:
 	Vec2 bpos, beamV;
 	ColorF beamc;
 public:
-	Shot(Size _sz, Vec2 _bpos):bullet_max(false), sz(_sz), bpos(_bpos) {
-		beam(bpos, sz);
+	Shot(Size _sz) :bullet_max(false), sz(_sz), bpos(Vec2(-40, -40)) {
 		beamc = Palette::Seagreen;
-		beamV = { 200,200 };
+		beamV = { 0,400 };
 	}
 	void Draw() {
-		beam.draw(beamc);
+		beam.resized(sz).drawAt(bpos, beamc);
 	}
 	void calc_shot(const Player& pl, Enemies& enemy); 
 	const Vec2& Get_bpos()const {
@@ -171,13 +179,19 @@ public:
 		}
 		part++;
 	}
-	bool hit(const Shot& shot) {
+	bool hit(const Vec2& bpos, const Size& shot_sz) {
 		for (auto it = enemies.begin(); it != enemies.end();) {
-			if ((it->epos.y + it->txsz.y / 2) >= shot.Get_bpos().y + shot.Get_sz().y/2
-				&& it->epos.x + it->txsz.x/2 <= shot.Get_bpos().x || it->epos.x - it->txsz.x/2 >= shot.Get_bpos().x) {
-				it = enemies.erase(it);
-				score += 20;
-				return true;
+ 			if ( it->epos.y - (it->txsz.y/2) <= bpos.y - shot_sz.y/2 && (it->epos.y + it->txsz.y / 2) >= bpos.y - shot_sz.y/2
+				|| it->epos.y - (it->txsz.y / 2) <= bpos.y + shot_sz.y / 2 && (it->epos.y + it->txsz.y / 2) >= bpos.y + shot_sz.y / 2){
+				if (it->epos.x - (it->txsz.x / 2) <= bpos.x - shot_sz.x / 2 &&
+					it->epos.x + (it->txsz.x / 2) >= bpos.x - shot_sz.x / 2 ||
+					it->epos.x - (it->txsz.x / 2) <= bpos.x + shot_sz.x / 2 &&
+					it->epos.x + (it->txsz.x / 2) >= bpos.x + shot_sz.x / 2) {
+					it = enemies.erase(it);
+					score += 20;
+					return true;
+				}
+				
 			}
 			it++;
 		}
@@ -205,6 +219,22 @@ public:
 		}
 
 	}
+	Vec2 rand_epos()const {
+		double rx = Sample(enemies).epos.x, dy = 0;
+		int i = 0, index = 0;
+		for (auto it = enemies.begin(); it != enemies.end();it++, i++) {
+			if (it->epos.x == rx) {
+				if (it->epos.y > dy) {
+					dy = it->epos.y;
+				}
+				else if (index == 0 && dy == 0) {
+					index = i;
+				}
+
+			}
+		}
+		return Vec2(rx, dy);
+	}
 };
 
 class Wall : public Texture{
@@ -224,7 +254,7 @@ private:
 public:
 	Walls(Size sz) {
 		for (int i = 0; i < 4; i++) {
-			walls << Wall(Texture{ U"inverder_png/zangou.png" }, sz, Vec2(150 + (i * sz.x), 500));
+			walls << Wall(Texture{ U"inverder_png/zangou.png" }, sz, Vec2(150 + (i * sz.x) + (i * 50), 500));
 		}
 	}
 	void Draw() {
@@ -232,6 +262,46 @@ public:
 			walld.resized(walld.sz).drawAt(walld.wpos, walld.color);
 		}
 	}
+};
+
+class Eshot {
+private:
+	Texture shot{U"inverder_png/enemybomb.png"};
+	Vec2 bpos, shotV;
+	ColorF color;
+	Size sz;
+	bool bomb_flag;
+public:
+	Eshot(Size _sz) : bpos(Vec2(-80, -80)), shotV(Vec2(0, 200)), color(Palette::Yellow), sz(_sz), bomb_flag(false){
+
+	}
+	void Draw() {
+		shot.resized(sz).drawAt(bpos, color);
+	}
+	void calc_eshot(const Enemies& enemy, const Player& pl, int life) {
+		if (bomb_flag == false) {
+			bpos = enemy.rand_epos();
+			bomb_flag = true;
+		}
+		else {
+			bpos += shotV * Scene::DeltaTime();
+			if (bpos.y >= 600) {
+				bomb_flag = false;
+				bpos = { -40, -40 };
+			}
+			if (pl.jikipos().y - pl.jikisz().y/2 <= bpos.y + sz.y / 2) {
+				if (pl.jikipos().x - pl.jikisz().x <= bpos.x - sz.x &&
+					pl.jikipos().x + pl.jikisz().x >= bpos.x - sz.x ||
+					pl.jikipos().x - pl.jikisz().x <= bpos.x + sz.x &&
+					pl.jikipos().x + pl.jikisz().x >= bpos.x + sz.x) {
+					life--;
+					bomb_flag = false;
+					bpos = { -40, -40 };
+				}
+			}
+		}
+	}
+
 };
 
 void Shot::calc_shot(const Player& pl, Enemies& enemy) {
@@ -242,8 +312,13 @@ void Shot::calc_shot(const Player& pl, Enemies& enemy) {
 		}
 	}
 	if (bullet_max == true) {
-		bpos += beamV * Scene::DeltaTime();
-		if (bpos.y > 600) {
+		bpos -= beamV * Scene::DeltaTime();
+		if (bpos.y < 0) {
+			bpos = { -40, -40 };
+			bullet_max = false;
+		}
+		if (enemy.hit(bpos, sz) == true) {
+			bpos = { -40, -40 };
 			bullet_max = false;
 		}
 	}
@@ -256,15 +331,17 @@ void Main()
 	Scene::SetBackground(ColorF{ Palette::Black });
 
 	Size txsz_chara{ 30, 30 };
-	Size txsz_bullet{ 10, 10 };
+	Size txsz_bullet{ 15, 20 };
 	Size txsz_obj{ 100,100 };
 
 	Rect debug_rect{ Arg::center(400, 300), 30, 30 };
-
-	Player pl(3, PL_START_POS, txsz_chara);
+	int life = 3;
+	Player pl(life, PL_START_POS, txsz_chara);
 	Enemies enemy(txsz_chara);
 	Walls wall(txsz_obj);
-
+	Shot shot(txsz_bullet);
+	Eshot bomb(txsz_bullet);
+	
 
 	while (System::Update())
 	{
@@ -273,6 +350,10 @@ void Main()
 		enemy.Draw();
 		pl.move();
 		enemy.move();
+		shot.calc_shot(pl, enemy);
+		shot.Draw();
+		bomb.calc_eshot(enemy, pl, life);
+		bomb.Draw();
 	}
 }
 
