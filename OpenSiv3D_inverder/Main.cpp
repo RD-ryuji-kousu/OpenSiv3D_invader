@@ -271,15 +271,16 @@ private:
 	ColorF color;
 	Size sz;
 	bool bomb_flag;
+	int rate;
 public:
-	Eshot(Size _sz) : bpos(Vec2(-80, -80)), shotV(Vec2(0, 200)), color(Palette::Yellow), sz(_sz), bomb_flag(false){
-
+	Eshot(Size _sz) : bpos(Vec2(-80, -80)), shotV(Vec2(0, 200)),
+		color(Palette::Yellow), sz(_sz), bomb_flag(false), rate(Random<int>(30, 60)){
 	}
 	void Draw() {
 		shot.resized(sz).drawAt(bpos, color);
 	}
 	void calc_eshot(const Enemies& enemy, const Player& pl, int life) {
-		if (bomb_flag == false) {
+		if (bomb_flag == false && rate == 0) {
 			bpos = enemy.rand_epos();
 			bomb_flag = true;
 		}
@@ -288,6 +289,7 @@ public:
 			if (bpos.y >= 600) {
 				bomb_flag = false;
 				bpos = { -40, -40 };
+				rate = Random<int>(30, 60);
 			}
 			if (pl.jikipos().y - pl.jikisz().y/2 <= bpos.y + sz.y / 2) {
 				if (pl.jikipos().x - pl.jikisz().x <= bpos.x - sz.x &&
@@ -297,15 +299,17 @@ public:
 					life--;
 					bomb_flag = false;
 					bpos = { -40, -40 };
+					rate = Random<int>(30, 60);
 				}
 			}
 		}
+		rate--;
 	}
 
 };
 
 void Shot::calc_shot(const Player& pl, Enemies& enemy) {
-	if (bullet_max == false) {
+	if (bullet_max == false ) {
 		if (KeySpace.pressed()) {
 			bpos = pl.jikipos();
 			bullet_max = true;
