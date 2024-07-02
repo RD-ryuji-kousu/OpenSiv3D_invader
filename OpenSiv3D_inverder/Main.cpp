@@ -93,12 +93,40 @@ public:
 	void Draw() {
 		beam.resized(sz).drawAt(bpos, beamc);
 	}
-	void calc_shot(const Player& pl, Enemies& enemy); 
+	void calc_shot(const Player& pl, Enemies& enemy, bool& anim, Vec2& apos); 
 	const Vec2& Get_bpos()const {
 		return bpos;
 	}
 	const Size& Get_sz()const {
 		return sz;
+	}
+};
+
+class HitAnim {
+private:
+	int fpsc;
+	Size sz;
+	Texture explode, anim;
+	Vec2 apos;
+	ColorF color;
+public:
+	HitAnim(Size _sz) : sz(_sz), explode(U"inverder_png/delete.png"),
+		anim(U"inverder_png/delete_anim.png"), apos(-40, -40), color(Palette::Azure), fpsc(0) {}
+	void Draw(Vec2 pos, bool& flag) {
+		if (flag == true) {
+			if (fpsc >= 0 && fpsc <= 7) {
+				explode.resized(sz).drawAt(pos, color);
+			}
+			else {
+				anim.resized(sz).drawAt(pos, color);
+				if (fpsc == 15) {
+					pos = { -40, 40 };
+					fpsc = 0;
+					flag = false;
+				}
+			}
+			fpsc++;
+		}
 	}
 };
 
@@ -179,7 +207,8 @@ public:
 		}
 		part++;
 	}
-	bool hit(const Vec2& bpos, const Size& shot_sz) {
+	bool hit(const Vec2& bpos, const Size& shot_sz, bool& anim, Vec2& apos) {
+
 		for (auto it = enemies.begin(); it != enemies.end();) {
  			if ( it->epos.y - (it->txsz.y/2) <= bpos.y - shot_sz.y/2 && (it->epos.y + it->txsz.y / 2) >= bpos.y - shot_sz.y/2
 				|| it->epos.y - (it->txsz.y / 2) <= bpos.y + shot_sz.y / 2 && (it->epos.y + it->txsz.y / 2) >= bpos.y + shot_sz.y / 2){
@@ -187,6 +216,8 @@ public:
 					it->epos.x + (it->txsz.x / 2) >= bpos.x - shot_sz.x / 2 ||
 					it->epos.x - (it->txsz.x / 2) <= bpos.x + shot_sz.x / 2 &&
 					it->epos.x + (it->txsz.x / 2) >= bpos.x + shot_sz.x / 2) {
+					anim = true;
+					apos = { it->epos.x, it->epos.y };
 					it = enemies.erase(it);
 					score += 20;
 					return true;
@@ -279,7 +310,7 @@ public:
 	void Draw() {
 		shot.resized(sz).drawAt(bpos, color);
 	}
-	void calc_eshot(const Enemies& enemy, const Player& pl, int life) {
+	void calc_eshot(const Enemies& enemy, const Player& pl, int life, bool& anim, Vec2& apos) {
 		if (bomb_flag == false && rate == 0) {
 			bpos = enemy.rand_epos();
 			bomb_flag = true;
@@ -297,6 +328,8 @@ public:
 					pl.jikipos().x - pl.jikisz().x <= bpos.x + sz.x &&
 					pl.jikipos().x + pl.jikisz().x >= bpos.x + sz.x) {
 					life--;
+					anim = true;
+					apos = pl.jikipos();
 					bomb_flag = false;
 					bpos = { -40, -40 };
 					rate = Random<int>(30, 60);
@@ -308,7 +341,7 @@ public:
 
 };
 
-void Shot::calc_shot(const Player& pl, Enemies& enemy) {
+void Shot::calc_shot(const Player& pl, Enemies& enemy, bool& anim, Vec2& apos) {
 	if (bullet_max == false ) {
 		if (KeySpace.pressed()) {
 			bpos = pl.jikipos();
@@ -321,7 +354,7 @@ void Shot::calc_shot(const Player& pl, Enemies& enemy) {
 			bpos = { -40, -40 };
 			bullet_max = false;
 		}
-		if (enemy.hit(bpos, sz) == true) {
+		if (enemy.hit(bpos, sz, anim, apos) == true) {
 			bpos = { -40, -40 };
 			bullet_max = false;
 		}
@@ -345,7 +378,9 @@ void Main()
 	Walls wall(txsz_obj);
 	Shot shot(txsz_bullet);
 	Eshot bomb(txsz_bullet);
-	
+	HitAnim anim(txsz_chara);
+	bool exflag;
+	Vec2 apos{ -40,-40 };
 
 	while (System::Update())
 	{
@@ -354,10 +389,11 @@ void Main()
 		enemy.Draw();
 		pl.move();
 		enemy.move();
-		shot.calc_shot(pl, enemy);
+		shot.calc_shot(pl, enemy, exflag, apos);
 		shot.Draw();
-		bomb.calc_eshot(enemy, pl, life);
+		bomb.calc_eshot(enemy, pl, life, exflag, apos);
 		bomb.Draw();
+		anim.Draw(apos, exflag);
 	}
 }
 
