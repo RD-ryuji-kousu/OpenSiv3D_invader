@@ -38,26 +38,40 @@ const Vec2 PL_START_POS{ 400, 550 };
 
 class Player {
 private:
-	int life;
+	int life, ret;
 	Texture jiki{ U"inverder_png/jiki.png" };
 	Vec2 plpos;
 	Size txsz;
 	double dx;
 public:
-	Player(int _life, Vec2 _plpos, Size _txsz) :life(_life), plpos(_plpos), dx(300), txsz(_txsz){
+	Player(int _life, Vec2 _plpos, Size _txsz) :life(_life), plpos(_plpos), dx(300), txsz(_txsz), ret(120){
 		
 	}
-	void move() {
-		if (KeyLeft.pressed()|| KeyA.pressed()) {
-			plpos.x -= dx * Scene::DeltaTime();
-			if ((plpos.x - (txsz.x / 2)) <= 0) {
-				plpos.x = 0 + txsz.x / 2;
+	void move(bool& flag) {
+		if (flag == true) {
+			if (KeyLeft.pressed() || KeyA.pressed()) {
+				plpos.x -= dx * Scene::DeltaTime();
+				if ((plpos.x - (txsz.x / 2)) <= 0) {
+					plpos.x = 0 + txsz.x / 2;
+				}
+			}
+			if (KeyRight.pressed() || KeyD.pressed()) {
+				plpos.x += dx * Scene::DeltaTime();
+				if ((plpos.x + (txsz.x / 2)) >= 800) {
+					plpos.x = 800 - txsz.x / 2;
+				}
 			}
 		}
-		if (KeyRight.pressed() || KeyD.pressed()) {
-			plpos.x += dx * Scene::DeltaTime();
-			if ((plpos.x + (txsz.x / 2)) >= 800) {
-				plpos.x = 800 - txsz.x / 2;
+		else
+		{
+			if (ret != 0) {
+				plpos = { 820, 606 };
+				ret--;
+			}
+			else {
+				plpos = PL_START_POS;
+				ret = 120;
+				flag = true;
 			}
 		}
 	}
@@ -104,28 +118,44 @@ public:
 
 class HitAnim {
 private:
-	int fpsc;
+	int fpsc_e, fpsc_p;
 	Size sz;
 	Texture explode, anim;
 	Vec2 apos;
 	ColorF color;
 public:
 	HitAnim(Size _sz) : sz(_sz), explode(U"inverder_png/delete.png"),
-		anim(U"inverder_png/delete_anim.png"), apos(-40, -40), color(Palette::Azure), fpsc(0) {}
-	void Draw(Vec2 pos, bool& flag) {
+		anim(U"inverder_png/delete_anim.png"), apos(-40, -40), color(Palette::Azure), fpsc_e(0), fpsc_p(0) {}
+	void DrawE(Vec2 pos, bool& flag) {
 		if (flag == true) {
-			if (fpsc >= 0 && fpsc <= 7) {
+			if (fpsc_e >= 0 && fpsc_e <= 7) {
 				explode.resized(sz).drawAt(pos, color);
 			}
 			else {
 				anim.resized(sz).drawAt(pos, color);
-				if (fpsc == 15) {
+				if (fpsc_e == 15) {
 					pos = { -40, 40 };
-					fpsc = 0;
+					fpsc_e = 0;
 					flag = false;
 				}
 			}
-			fpsc++;
+			fpsc_e++;
+		}
+	}
+	void DrawP(Vec2 pos, bool& flag) {
+		if (flag == true) {
+			if (fpsc_p >= 0 && fpsc_p <= 60) {
+				explode.resized(sz).drawAt(pos, color);
+			}
+			else {
+				anim.resized(sz).drawAt(pos, color);
+				if (fpsc_p == 120) {
+					pos = { -40, 40 };
+					fpsc_p = 0;
+					flag = false;
+				}
+			}
+			fpsc_p++;
 		}
 	}
 };
@@ -271,10 +301,9 @@ public:
 class Wall : public Texture{
 public:
 	Size sz;
-	Texture wall;
 	ColorF color;
 	Vec2 wpos;
-	Wall(const Texture& _wall ,Size _sz, Vec2 _wpos) :wall(_wall), sz(_sz), wpos(_wpos) {
+	Wall(const Texture& _wall ,Size _sz, Vec2 _wpos) :Texture(_wall), sz(_sz), wpos(_wpos) {
 		color = Palette::Red;
 	}
 };
@@ -285,7 +314,7 @@ private:
 public:
 	Walls(Size sz) {
 		for (int i = 0; i < 4; i++) {
-			walls << Wall(Texture{ U"inverder_png/zangou.png" }, sz, Vec2(150 + (i * sz.x) + (i * 50), 500));
+			walls << Wall(Texture{ U"inverder_png/zangou.png" }, sz, Vec2(150 + (i * sz.x) + (i * 65), 480));
 		}
 	}
 	void Draw() {
@@ -310,7 +339,7 @@ public:
 	void Draw() {
 		shot.resized(sz).drawAt(bpos, color);
 	}
-	void calc_eshot(const Enemies& enemy, const Player& pl, int life, bool& anim, Vec2& apos) {
+	void calc_eshot(const Enemies& enemy, const Player& pl, int& life, bool& anim, Vec2& apos, bool& flag) {
 		if (bomb_flag == false && rate == 0) {
 			bpos = enemy.rand_epos();
 			bomb_flag = true;
@@ -329,6 +358,7 @@ public:
 					pl.jikipos().x + pl.jikisz().x >= bpos.x + sz.x) {
 					life--;
 					anim = true;
+					flag = false;
 					apos = pl.jikipos();
 					bomb_flag = false;
 					bpos = { -40, -40 };
@@ -379,21 +409,24 @@ void Main()
 	Shot shot(txsz_bullet);
 	Eshot bomb(txsz_bullet);
 	HitAnim anim(txsz_chara);
-	bool exflag;
-	Vec2 apos{ -40,-40 };
+	bool exflag_e = false, exflag_p = false, move_flag = true;
+	Vec2 apos_e{ -40,-40 }, apos_p{ -40, -40 };
+	Font font_life{ 20 };
 
 	while (System::Update())
 	{
 		wall.Draw();
 		pl.Draw();
 		enemy.Draw();
-		pl.move();
+		pl.move(move_flag);
 		enemy.move();
-		shot.calc_shot(pl, enemy, exflag, apos);
+		shot.calc_shot(pl, enemy, exflag_e, apos_e);
 		shot.Draw();
-		bomb.calc_eshot(enemy, pl, life, exflag, apos);
+		bomb.calc_eshot(enemy, pl, life, exflag_p, apos_p, move_flag);
 		bomb.Draw();
-		anim.Draw(apos, exflag);
+		anim.DrawE(apos_e, exflag_e);
+		anim.DrawP(apos_p, exflag_p);
+		font_life(U"Life", life).draw(Arg::bottomLeft(0, 600));
 	}
 }
 
