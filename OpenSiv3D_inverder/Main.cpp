@@ -359,8 +359,9 @@ public:
 	ColorF color;
 	Vec2 wpos;
 	Image wall;
- 	Wall(const Image& _wall ,Size _sz, Vec2 _wpos) :DynamicTexture(_wall), sz(_sz), wpos(_wpos),
-		color(Palette::Red), wall(_wall) {
+	int index;
+ 	Wall(const Image& _wall ,Size _sz, Vec2 _wpos, int i) :DynamicTexture(_wall), sz(_sz), wpos(_wpos),
+		color(Palette::Red), wall(_wall), index(i) {
 		
 	}
 	double Break_wall(const Vec2& bpos, const Size& bsz) {
@@ -396,6 +397,8 @@ public:
 	}
 };
 
+const int WALL_FIRST_POS = 150;
+const int WALL_SPACE = 65;
 
 class Walls {
 private:
@@ -403,7 +406,7 @@ private:
 public:
 	Walls(Size sz) {
 		for (int i = 0; i < 4; i++) {
-			walls << Wall(Image{ U"inverder_png/zangou.png" }, sz, Vec2(150 + (i * sz.x) + (i * 65), 480));
+			walls << Wall(Image{ U"inverder_png/zangou.png" }, sz, Vec2(150 + (i * sz.x) + (i * 65), 480), i);
 		}
 	}
 	void Draw() {
@@ -417,14 +420,24 @@ public:
 	/// @param[in] txsz テクスチャサイズ
 	/// @return 命中したらtrue
 	bool hit(const Vec2& bpos, const Size& sz, const Size& txsz) {
-		double count = 0;
+		double count = 0, y0, y1, x0, x1;
+		double sx0 = bpos.x - sz.x / 2, sx1 = bpos.x + sz.x / 2, sy0 = bpos.y - sz.y / 2, sy1 = bpos.y + sz.y / 2;
+		double iszx, iszy;
+		Vec2 ibpos;
 		for (auto it = walls.begin(); it != walls.end(); it++) {
-			if (it->wpos.y + it->sz.y / 2 > bpos.y - sz.y / 2 && it->wpos.y - it->sz.y / 2 < bpos.y + sz.y / 2) {
-				if (it->wpos.x + it->sz.x / 2 > bpos.x - sz.x / 2 &&
-					it->wpos.x - it->sz.x / 2 < bpos.x + sz.x / 2) {
-					count = it->Break_wall(Vec2((bpos.x - sz.x / 2) * (it->wall.width() / it->sz.x),
-						(bpos.y - (sz.y / 2)) * (it->wall.height() / it->sz.y)), txsz);
-					if (count >= 0.5) {
+			y0 = it->wpos.y - it->sz.y / 2;
+			y1 = it->wpos.y + it->sz.y / 2;
+			x0 = it->wpos.x - it->sz.x / 2;
+			x1 = it->wpos.x + it->sz.x / 2;
+			iszx = it->wall.width() / it->sz.x;
+			iszy = it->wall.height() / it->sz.y;
+			if (y0 < sy1 && sy0 < y1) {
+				if ( x0 < sx1 && sx0 < x1) {
+					ibpos = { (sx0 - x0) * iszx, (sy0 - y0) * iszy };
+					
+					count = it->Break_wall(ibpos, txsz);
+					it->fill(it->wall);
+					if (count >= 0.25) {
 						return true;
 					}
 				}
