@@ -364,21 +364,19 @@ public:
 		color(Palette::Red), wall(_wall), index(i) {
 		
 	}
-	double Break_wall(const Vec2& bpos, const Size& bsz) {
+	double Break_wall(const Vec2& bpos, const SizeF& bsz) {
 		int count = 0;
 		int x0 = (int)bpos.x;
 		int x1 = (int)bpos.x + bsz.x;
 		int y0 = (int)bpos.y;
 		int y1 = (int)bpos.y + bsz.y;
 		if (x0 < 0) {
-			x1 += x0;
 			x0 = 0;
 		}
 		if (x1 > wall.width()) {
 			x1 = wall.width();
 		}
 		if (y0 < 0) {
-			y1 += y0;
 			y0 = 0;
 		}
 		if (y1 > wall.height()) {
@@ -419,25 +417,29 @@ public:
 	/// @param[in] sz 描画サイズ
 	/// @param[in] txsz テクスチャサイズ
 	/// @return 命中したらtrue
-	bool hit(const Vec2& bpos, const Size& sz, const Size& txsz) {
+	bool hit(const Vec2& bpos, const Size& sz) {
 		double count = 0, y0, y1, x0, x1;
 		double sx0 = bpos.x - sz.x / 2, sx1 = bpos.x + sz.x / 2, sy0 = bpos.y - sz.y / 2, sy1 = bpos.y + sz.y / 2;
 		double iszx, iszy;
 		Vec2 ibpos;
+		SizeF tmpsz;
 		for (auto it = walls.begin(); it != walls.end(); it++) {
 			y0 = it->wpos.y - it->sz.y / 2;
 			y1 = it->wpos.y + it->sz.y / 2;
 			x0 = it->wpos.x - it->sz.x / 2;
 			x1 = it->wpos.x + it->sz.x / 2;
-			iszx = it->wall.width() / it->sz.x;
-			iszy = it->wall.height() / it->sz.y;
+			iszx = (double)it->wall.width() / it->sz.x;
+			iszy = (double)it->wall.height() / it->sz.y;
+			tmpsz = { sz.x * iszx, sz.y * iszy };
 			if (y0 < sy1 && sy0 < y1) {
 				if ( x0 < sx1 && sx0 < x1) {
 					ibpos = { (sx0 - x0) * iszx, (sy0 - y0) * iszy };
 					
-					count = it->Break_wall(ibpos, txsz);
+					count = it->Break_wall(ibpos, tmpsz);
 					it->fill(it->wall);
-					if (count >= 0.25) {
+					Print << count;
+					if (count >= 0.15) {
+						
 						return true;
 					}
 				}
@@ -489,10 +491,9 @@ public:
 					rate = Random<int>(30, 60);
 				}
 			}
-			if (wall.hit(bpos, sz, shot.size()) == true) {
-				flag = false;
-				apos = pl.jikipos();
+			if (wall.hit(bpos, sz) == true) {
 				bomb_flag = false;
+				Print << U"!!!";
 				bpos = { -40, -40 };
 				rate = Random<int>(30, 60);
 			}
@@ -521,7 +522,7 @@ void Shot::calc_shot(const Player& pl, Enemies& enemy, Walls& wall,bool& anim, V
 			bpos = { -40, -40 };
 			bullet_max = false;
 		}
-		if (wall.hit(bpos, sz, beam.size()) == true) {
+		if (wall.hit(bpos, sz) == true) {
 			bpos = { -40, -40 };
 			bullet_max = false;
 		}
