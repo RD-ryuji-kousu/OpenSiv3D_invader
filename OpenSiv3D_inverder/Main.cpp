@@ -126,7 +126,7 @@ public:
 	void Draw() {
 		beam.resized(sz).drawAt(bpos, beamc);
 	}
-	void calc_shot(const Player& pl, Enemies& enemy, Walls& wall,bool& anim, Vec2& apos);
+	void calc_shot(const Player& pl, Enemies& enemy, Walls& wall,bool& anim, Vec2& apos, bool& end_flag);
 	/// @brief 発射物の位置を返す
 	/// @return 弾の位置
 	const Vec2& Get_bpos()const {
@@ -290,9 +290,9 @@ public:
 	/// @param[in] bpos 自機の弾の位置
 	/// @param[in] shot_sz 自機の弾のサイズ 
 	/// @param[in, out] anim 被弾したとき描画するためのtrue,falseを返す, 被弾したときtrue
-	/// @param apos 
-	/// @return 
-	bool hit(const Vec2& bpos, const Size& shot_sz, bool& anim, Vec2& apos) {
+	/// @param[out] apos アニメーションの描画位置 
+	/// @return 当たったらtrueを返す
+	bool hit(const Vec2& bpos, const Size& shot_sz, bool& anim, Vec2& apos, bool& end_flag) {
 
 		for (auto it = enemies.begin(); it != enemies.end();) {
  			if ( it->epos.y - (it->txsz.y/2) <= bpos.y - shot_sz.y/2 && (it->epos.y + it->txsz.y / 2) >= bpos.y - shot_sz.y/2
@@ -310,6 +310,9 @@ public:
 				
 			}
 			it++;
+		}
+		if (enemies.empty()) {
+			end_flag = true;
 		}
 		return false;
 	}
@@ -335,6 +338,9 @@ public:
 		}
 
 	}
+
+	void hitw(Walls& wall);
+
 	Vec2 rand_epos()const {
 		double rx = Sample(enemies).epos.x, dy = 0;
 		int i = 0, index = 0;
@@ -437,7 +443,7 @@ public:
 					
 					count = it->Break_wall(ibpos, tmpsz);
 					it->fill(it->wall);
-					Print << count;
+					//Print << count;
 					if (count >= 0.15) {
 						
 						return true;
@@ -448,6 +454,18 @@ public:
 		return false;
 	}
 };
+
+
+class Bonus {
+
+};
+
+
+void Enemies::hitw(Walls& wall) {
+	for (auto it = enemies.begin(); it != enemies.end(); it++) {
+		if (wall.hit(it->epos, it->txsz) == true)break;
+	}
+}
 
 
 class Eshot {
@@ -493,7 +511,7 @@ public:
 			}
 			if (wall.hit(bpos, sz) == true) {
 				bomb_flag = false;
-				Print << U"!!!";
+				//Print << U"!!!";
 				bpos = { -40, -40 };
 				rate = Random<int>(30, 60);
 			}
@@ -505,7 +523,7 @@ public:
 
 
 
-void Shot::calc_shot(const Player& pl, Enemies& enemy, Walls& wall,bool& anim, Vec2& apos) {
+void Shot::calc_shot(const Player& pl, Enemies& enemy, Walls& wall,bool& anim, Vec2& apos, bool& end_flag) {
 	if (bullet_max == false ) {
 		if (KeySpace.pressed()) {
 			bpos = pl.jikipos();
@@ -518,7 +536,7 @@ void Shot::calc_shot(const Player& pl, Enemies& enemy, Walls& wall,bool& anim, V
 			bpos = { -40, -40 };
 			bullet_max = false;
 		}
-		if (enemy.hit(bpos, sz, anim, apos) == true) {
+		if (enemy.hit(bpos, sz, anim, apos, end_flag) == true) {
 			bpos = { -40, -40 };
 			bullet_max = false;
 		}
@@ -538,7 +556,7 @@ void Main()
 	Size txsz_chara{ 30, 30 };
 	Size txsz_bullet{ 15, 20 };
 	Size txsz_obj{ 100,100 };
-
+	bool end_flag = false;
 	Rect debug_rect{ Arg::center(400, 300), 30, 30 };
 	int life = 3;
 	Player pl(life, PL_START_POS, txsz_chara);
@@ -558,8 +576,9 @@ void Main()
 		enemy.Draw();
 		pl.move(move_flag);
 		enemy.move();
-		shot.calc_shot(pl, enemy, wall,exflag_e, apos_e);
+		shot.calc_shot(pl, enemy, wall,exflag_e, apos_e, end_flag);
 		shot.Draw();
+		enemy.hitw(wall);
 		bomb.calc_eshot(enemy, pl, wall,life, exflag_p, apos_p, move_flag);
 		bomb.Draw();
 		anim.DrawE(apos_e, exflag_e);
