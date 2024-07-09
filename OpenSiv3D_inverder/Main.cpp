@@ -49,7 +49,7 @@ public:
 	/// @param _life ライフ
 	/// @param _plpos 自機の位置
 	/// @param _txsz 描画されるテクスチャのサイズ
-	Player(int _life, Vec2 _plpos, Size _txsz) :life(_life), plpos(_plpos), dx(300), txsz(_txsz), ret(120){
+	Player(int _life, const Vec2& _plpos, const Size& _txsz) :life(_life), plpos(_plpos), dx(300), txsz(_txsz), ret(120){
 		
 	}
 	/// @brief 自機の操作
@@ -106,7 +106,13 @@ public:
 	Size& jikisz(){
 		return txsz;
 	}
-	
+
+	void reset() {
+		life = 3;
+		ret = 120;
+		plpos = PL_START_POS;
+	}
+
 };
 /// @brief 自機から発射される弾を管理する;
 class Shot {
@@ -356,6 +362,60 @@ public:
 		}
 		return Vec2(rx, dy);
 	}
+
+
+	void reset(const Size& txsz) {
+		if (enemies.isEmpty() == false) {
+			enemies.clear();
+		}
+		ColorF enmyc = { 0, 0, 0 };
+		FilePathView path = U".", anim = U".";
+		int point = 0;
+		part = 0;
+		for (int y = 0; y < 5; y++) {
+			for (int x = 0; x < 11; x++) {
+				switch (y)
+				{
+				case 0:
+					enmyc = { Palette::Magenta };
+					path = U"inverder_png/enemy1.png";
+					anim = U"inverder_png/enemy1_anim.png";
+					point = 10;
+					break;
+				case 1:
+					enmyc = { Palette::Magenta };
+					path = U"inverder_png/enemy1.png";
+					anim = U"inverder_png/enemy1_anim.png";
+					point = 10;
+					break;
+				case 2:
+					enmyc = { Palette::Aqua };
+					path = U"inverder_png/enemy2.png";
+					anim = U"inverder_png/enemy2_anim.png";
+					point = 20;
+					break;
+				case 3:
+					enmyc = { Palette::Aqua };
+					path = U"inverder_png/enemy2.png";
+					anim = U"inverder_png/enemy2_anim.png";
+					point = 20;
+					break;
+				case 4:
+					enmyc = { Palette::Greenyellow };
+					path = U"inverder_png/enemy3.png";
+					anim = U"inverder_png/enemy3_anim.png";
+					point = 30;
+					break;
+				default:
+					break;
+				}
+				enemies << Enemy(Texture{ path }, Texture{ anim }, enmyc,
+					txsz, Vec2(150 + x * txsz.x + x * 20, 300 - (y * txsz.y) - (y * 20)), point);
+			}
+
+		}
+	}
+
 };
 
 class Wall : public DynamicTexture{
@@ -364,9 +424,8 @@ public:
 	ColorF color;
 	Vec2 wpos;
 	Image wall;
-	int index;
- 	Wall(const Image& _wall ,Size _sz, Vec2 _wpos, int i) :DynamicTexture(_wall), sz(_sz), wpos(_wpos),
-		color(Palette::Red), wall(_wall), index(i) {
+ 	Wall(const Image& _wall ,Size _sz, Vec2 _wpos) :DynamicTexture(_wall), sz(_sz), wpos(_wpos),
+		color(Palette::Red), wall(_wall) {
 		
 	}
 	double Break_wall(const Vec2& bpos, const SizeF& bsz) {
@@ -407,9 +466,9 @@ class Walls {
 private:
 	Array<Wall> walls;
 public:
-	Walls(Size sz) {
+	Walls(const Size& sz) {
 		for (int i = 0; i < 4; i++) {
-			walls << Wall(Image{ U"inverder_png/zangou.png" }, sz, Vec2(150 + (i * sz.x) + (i * 65), 480), i);
+			walls << Wall(Image{ U"inverder_png/zangou.png" }, sz, Vec2(150 + (i * sz.x) + (i * 65), 480));
 		}
 	}
 	void Draw() {
@@ -451,6 +510,13 @@ public:
 			}
 		}
 		return false;
+	}
+
+	void reset(const Size& sz) {
+		walls.clear();
+		for (int i = 0; i < 4; i++) {
+			walls << Wall(Image{ U"inverder_png/zangou.png" }, sz, Vec2(150 + (i * sz.x) + (i * 65), 480));
+		}
 	}
 };
 
@@ -536,6 +602,11 @@ public:
 		}
 		return false;
 	}
+	void reset() {
+		bpos = { -40, 100 };
+		apos = { -40, 100 };
+		moveF = false;
+	}
 };
 
 
@@ -554,8 +625,9 @@ private:
 	Size sz;
 	bool bomb_flag;
 	int rate;
+	double bomb_line;
 public:
-	Eshot(Size _sz) : bpos(Vec2(-80, -80)), shotV(Vec2(0, 200)),
+	Eshot(Size _sz) : bpos(Vec2(-80, -80)), shotV(Vec2(0, 200)),bomb_line(0.0),
 		color(Palette::Yellow), sz(_sz), bomb_flag(false), rate(Random<int>(30, 60)){
 	}
 	void Draw() {
@@ -564,37 +636,46 @@ public:
 	void calc_eshot(const Enemies& enemy, const Player& pl, Walls& wall,int& life, bool& anim, Vec2& apos, bool& flag) {
 		if (bomb_flag == false && rate == 0) {
 			bpos = enemy.rand_epos();
+			bomb_line = bpos.y;
 			bomb_flag = true;
 		}
 		else {
-			bpos += shotV * Scene::DeltaTime();
-			if (bpos.y >= 600) {
+			
+			if (bomb_line + 30 >= 520) {
 				bomb_flag = false;
-				bpos = { -40, -40 };
+				bpos = { -40,-40 };
 				rate = Random<int>(30, 60);
 			}
-			if (pl.jikipos().y - pl.jikisz().y/2 <= bpos.y + sz.y / 2) {
-				if (pl.jikipos().x - pl.jikisz().x <= bpos.x - sz.x &&
-					pl.jikipos().x + pl.jikisz().x >= bpos.x - sz.x ||
-					pl.jikipos().x - pl.jikisz().x <= bpos.x + sz.x &&
-					pl.jikipos().x + pl.jikisz().x >= bpos.x + sz.x) {
-					life--;
-					anim = true;
-					flag = false;
-					apos = pl.jikipos();
+			else {
+				bpos += shotV * Scene::DeltaTime();
+				if (bpos.y >= 600) {
 					bomb_flag = false;
 					bpos = { -40, -40 };
 					rate = Random<int>(30, 60);
 				}
+				if (pl.jikipos().y - pl.jikisz().y / 2 <= bpos.y + sz.y / 2) {
+					if (pl.jikipos().x - pl.jikisz().x <= bpos.x - sz.x &&
+						pl.jikipos().x + pl.jikisz().x >= bpos.x - sz.x ||
+						pl.jikipos().x - pl.jikisz().x <= bpos.x + sz.x &&
+						pl.jikipos().x + pl.jikisz().x >= bpos.x + sz.x) {
+						life--;
+						anim = true;
+						flag = false;
+						apos = pl.jikipos();
+						bomb_flag = false;
+						bpos = { -40, -40 };
+						rate = Random<int>(30, 60);
+					}
+				}
+				if (wall.hit(bpos, sz) == true) {
+					bomb_flag = false;
+					//Print << U"!!!";
+					bpos = { -40, -40 };
+					rate = Random<int>(30, 60);
+				}
 			}
-			if (wall.hit(bpos, sz) == true) {
-				bomb_flag = false;
-				//Print << U"!!!";
-				bpos = { -40, -40 };
-				rate = Random<int>(30, 60);
-			}
+			rate--;
 		}
-		rate--;
 	}
 
 };
