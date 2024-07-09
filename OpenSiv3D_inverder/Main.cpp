@@ -32,6 +32,7 @@ private:
 };
 class Walls;
 class Enemies;
+class Bonus;
 //自機の初期位置
 const Vec2 PL_START_POS{ 400, 550 };
 
@@ -126,7 +127,8 @@ public:
 	void Draw() {
 		beam.resized(sz).drawAt(bpos, beamc);
 	}
-	void calc_shot(const Player& pl, Enemies& enemy, Walls& wall,bool& anim, Vec2& apos, bool& end_flag);
+	void calc_shot(const Player& pl, Enemies& enemy, Walls& wall, Bonus& ufo,
+		bool& anim, Vec2& apos, bool& end_flag, int& score, Stopwatch& time, bool& bonus_flag);
 	/// @brief 発射物の位置を返す
 	/// @return 弾の位置
 	const Vec2& Get_bpos()const {
@@ -157,7 +159,7 @@ public:
 	/// @brief 敵被弾時アニメーション描画
 	/// @param[in] pos 被弾した敵座標
 	/// @param[in, out] flag アニメーションをtrueの時描画
-	void DrawE(Vec2 pos, bool& flag) {
+	void DrawE(Vec2& pos, bool& flag) {
 		if (flag == true) {
 			if (fpsc_e >= 0 && fpsc_e <= 7) {
 				explode.resized(sz).drawAt(pos, color);
@@ -173,7 +175,7 @@ public:
 			fpsc_e++;
 		}
 	}
-	void DrawP(Vec2 pos, bool& flag) {
+	void DrawP(Vec2& pos, bool& flag) {
 		if (flag == true) {
 			if (fpsc_p >= 0 && fpsc_p <= 60) {
 				explode.resized(sz).drawAt(pos, color);
@@ -214,24 +216,22 @@ public:
 class Enemies {
 private:
 	Array<Enemy> enemies;
-	int score;
+	//int score;
 	double dx = 20;
 	double move_max;
 	int move_y;
 	int part = 0;
-	Font font;
 public:
 	//コンストラクタ
 	///@param[in]テクスチャのサイズ
-	Enemies(const Size& txsz):move_max(100), move_y(0), score(0), font(20) {
+	Enemies(const Size& txsz):move_max(100), move_y(0) {
 		ColorF enmyc = { 0, 0, 0 };
 		FilePathView path = U".", anim = U".";
 		int point = 0;
 		for (int y = 0; y < 5; y++) {
 			for (int x = 0; x < 11; x++) {
 				switch (y)
-				{
-				
+				{				
 				case 0:
 					enmyc = { Palette::Magenta };
 					path = U"inverder_png/enemy1.png";
@@ -283,7 +283,6 @@ public:
 			}
 		}
 		//スコアの表示
-		font(U"Score\n", score).draw(0, 0);
 		part++;
 	}
 	/// @brief 敵が被弾したときの処理
@@ -292,7 +291,7 @@ public:
 	/// @param[in, out] anim 被弾したとき描画するためのtrue,falseを返す, 被弾したときtrue
 	/// @param[out] apos アニメーションの描画位置 
 	/// @return 当たったらtrueを返す
-	bool hit(const Vec2& bpos, const Size& shot_sz, bool& anim, Vec2& apos, bool& end_flag) {
+	bool hit(const Vec2& bpos, const Size& shot_sz, bool& anim, Vec2& apos, bool& end_flag, int& score) {
 
 		for (auto it = enemies.begin(); it != enemies.end();) {
  			if ( it->epos.y - (it->txsz.y/2) <= bpos.y - shot_sz.y/2 && (it->epos.y + it->txsz.y / 2) >= bpos.y - shot_sz.y/2
@@ -457,7 +456,86 @@ public:
 
 
 class Bonus {
+private:
+	Texture Ufo{ U"inverder_png/bonus_e.png" };
+	Texture break_anim{ U"inverder_png/bonus_break.png" };
+	Vec2 bpos, moveV, apos;
+	ColorF color;
+	Size sz;
+	bool moveF;
+	int anim;
+public:
+	Bonus(Size _sz) :sz(_sz), color(Palette::Crimson), moveV(Vec2{90,0})
+	, bpos(Vec2(-20, 100)), apos(Vec2(-20, 100)), anim(0), moveF(false){}
+	void Draw(HitAnim& hit, bool& flag) {
+		if (flag == false) {
+			Ufo.resized(sz).drawAt(bpos, color);
+		}
+		if(flag == true) {
+			if (anim >= 0 && anim <= 8) {
+				break_anim.resized(sz).drawAt(apos, color);
+			}
+			else {
+				hit.DrawE(apos, flag);
+				if (flag == false) {
+					anim = 0;
+				}
+			}
+			anim++;
+		}
+	}
 
+	void move(Stopwatch& time) {
+		if (time >= 30s) {
+			if (moveF == false) {
+				bpos += moveV * Scene::DeltaTime();
+				if (bpos.x >= 800) {
+					bpos = { 840, 100 };
+					time.reset();
+					moveF = true;
+				}
+			}
+			else
+			{
+				bpos -= moveV * Scene::DeltaTime();
+				if (bpos.x <= 0) {
+					bpos = { -40, 100 };
+					time.reset();
+					moveF = false;
+				}
+			}
+		}
+	}
+
+	bool hit(Vec2& spos, const Size& ssz, Stopwatch& time, int& score, bool& flag) {
+		double sx0 = spos.x - ssz.x, sx1 = spos.x + ssz.x;
+		double sy0 = spos.y - ssz.y, sy1 = spos.y - ssz.y;
+		double x0 = bpos.x - sz.x, x1 = bpos.x + sz.x;
+		double y0 = bpos.y - sz.y, y1 = bpos.y + sz.y;
+		if (y0 < sy1 && sy0 < y1) {
+			if (x0 < sx1 && sx0 < x1) {
+				if (moveF == false) {
+					apos = bpos;
+					bpos = { -40, 100 };
+					time.reset();
+					moveF = true;
+					score += 300;
+					flag = true;
+					return true;
+				}
+				else {
+					apos = bpos;
+					bpos = { 840, 100 };
+					time.reset();
+					moveF = false;
+					score += 300;
+					flag = true;
+					return true;
+				}
+			}
+		}
+		return false;
+	}
 };
 
 
@@ -523,7 +601,8 @@ public:
 
 
 
-void Shot::calc_shot(const Player& pl, Enemies& enemy, Walls& wall,bool& anim, Vec2& apos, bool& end_flag) {
+void Shot::calc_shot(const Player& pl, Enemies& enemy, Walls& wall, Bonus& ufo,
+	bool& anim, Vec2& apos, bool& end_flag, int& score, Stopwatch& time, bool& bonus_flag) {
 	if (bullet_max == false ) {
 		if (KeySpace.pressed()) {
 			bpos = pl.jikipos();
@@ -536,11 +615,15 @@ void Shot::calc_shot(const Player& pl, Enemies& enemy, Walls& wall,bool& anim, V
 			bpos = { -40, -40 };
 			bullet_max = false;
 		}
-		if (enemy.hit(bpos, sz, anim, apos, end_flag) == true) {
+		if (enemy.hit(bpos, sz, anim, apos, end_flag, score) == true) {
 			bpos = { -40, -40 };
 			bullet_max = false;
 		}
 		if (wall.hit(bpos, sz) == true) {
+			bpos = { -40, -40 };
+			bullet_max = false;
+		}
+		if (ufo.hit(bpos, sz, time, score, bonus_flag) == true) {
 			bpos = { -40, -40 };
 			bullet_max = false;
 		}
@@ -556,34 +639,44 @@ void Main()
 	Size txsz_chara{ 30, 30 };
 	Size txsz_bullet{ 15, 20 };
 	Size txsz_obj{ 100,100 };
-	bool end_flag = false;
+	Font font{20};
+	bool end_flag = false, ufo_flag = false;
 	Rect debug_rect{ Arg::center(400, 300), 30, 30 };
-	int life = 3;
+	int life = 3, score = 0;
 	Player pl(life, PL_START_POS, txsz_chara);
 	Enemies enemy(txsz_chara);
 	Walls wall(txsz_obj);
 	Shot shot(txsz_bullet);
 	Eshot bomb(txsz_bullet);
 	HitAnim anim(txsz_chara);
+	Bonus ufo(txsz_chara);
+	Stopwatch time{ StartImmediately::No };
 	bool exflag_e = false, exflag_p = false, move_flag = true;
 	Vec2 apos_e{ -40,-40 }, apos_p{ -40, -40 };
 	Font font_life{ 20 };
 
 	while (System::Update())
 	{
+		if (time <= 0s) {
+			time.start();
+		}
+		//Print << time;
 		wall.Draw();
 		pl.Draw();
 		enemy.Draw();
 		pl.move(move_flag);
 		enemy.move();
-		shot.calc_shot(pl, enemy, wall,exflag_e, apos_e, end_flag);
+		ufo.move(time);
+		shot.calc_shot(pl, enemy, wall, ufo, exflag_e, apos_e, end_flag, score, time, ufo_flag);
 		shot.Draw();
 		enemy.hitw(wall);
 		bomb.calc_eshot(enemy, pl, wall,life, exflag_p, apos_p, move_flag);
 		bomb.Draw();
 		anim.DrawE(apos_e, exflag_e);
 		anim.DrawP(apos_p, exflag_p);
+		ufo.Draw(anim, ufo_flag);
 		font_life(U"Life", life).draw(Arg::bottomLeft(0, 600));
+		font(U"Score\n", score).draw(0, 0);
 	}
 }
 
