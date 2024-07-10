@@ -5,12 +5,12 @@ class Start {
 public:
 	void View() {
 		font(first).draw(Arg::center(400, 200));
-		font(second).draw(Arg::center(400, 400));
+		//font(second).draw(Arg::center(400, 400));
 	}
 private:
 	const Font font{ 60 };
 	String first = U"Start press 'F'";
-	String second = U"Choose second move?\n Press 'S'";
+	//String second = U"Choose second move?\n Press 'S'";
 };
 
 //ゲームオーバー画面
@@ -19,7 +19,7 @@ public:
 	/*
 	@param[in] text1	条件に則したテキストを受け取る
 	*/
-	void View(const String& text1) {
+	void View() {
 		title(text1).draw(Arg::center(400, 100), Palette::Red);
 		font(restart).draw(Arg::center(400, 400));
 		font(quit).draw(Arg::center(400, 500));
@@ -27,6 +27,7 @@ public:
 private:
 	const Font title{ 100 };
 	const Font font{ 60 };
+	String text1 = U"Missed!!";
 	String restart = U"Restart Press'R'";
 	String quit = U"Quit Press 'Q'";
 };
@@ -106,11 +107,15 @@ public:
 	Size& jikisz(){
 		return txsz;
 	}
-
+	int Get_life()const {
+		return life;
+	}
 	void reset() {
-		life = 3;
 		ret = 120;
 		plpos = PL_START_POS;
+	}
+	void life_reset() {
+		life = 3;
 	}
 
 };
@@ -120,6 +125,7 @@ private:
 	Size sz;
 	bool bullet_max;
 	Texture beam{ U"inverder_png/beam1.png" };
+	const Audio sounds{};
 	Vec2 bpos, beamV;
 	ColorF beamc;
 public:
@@ -298,7 +304,6 @@ public:
 	/// @param[out] apos アニメーションの描画位置 
 	/// @return 当たったらtrueを返す
 	bool hit(const Vec2& bpos, const Size& shot_sz, bool& anim, Vec2& apos, bool& end_flag, int& score) {
-
 		for (auto it = enemies.begin(); it != enemies.end();) {
  			if ( it->epos.y - (it->txsz.y/2) <= bpos.y - shot_sz.y/2 && (it->epos.y + it->txsz.y / 2) >= bpos.y - shot_sz.y/2
 				|| it->epos.y - (it->txsz.y / 2) <= bpos.y + shot_sz.y / 2 && (it->epos.y + it->txsz.y / 2) >= bpos.y + shot_sz.y / 2){
@@ -310,38 +315,40 @@ public:
 					apos = { it->epos.x, it->epos.y };
 					score += it->score;
 					it = enemies.erase(it);
+					if (enemies.empty()) {
+						end_flag = true;
+					}
 					return true;
 				}
 				
 			}
 			it++;
 		}
-		if (enemies.empty()) {
-			end_flag = true;
-		}
+
 		return false;
 	}
 	void move() {
-		move_max -= abs(dx * Scene::DeltaTime());
-		for (auto it = enemies.begin(); it != enemies.end();it++) {
-			
-			if (move_max <= 0&&move_y != 30) {
-				it->epos.y += it->txsz.y / 30;
-			}
-			else {
-				it->epos.x += dx * Scene::DeltaTime();
-			}
-		}
+		if (enemies.empty() == false) {
+			move_max -= abs(dx * Scene::DeltaTime());
+			for (auto it = enemies.begin(); it != enemies.end(); it++) {
 
-		if (move_max <= 0 && move_y != 30) {
-			move_y++;
-		}
-		if (move_max <= 0 && move_y == 30) {
-			dx *= -1;
-			move_max = 200;
-			move_y = 0;
-		}
+				if (move_max <= 0 && move_y != 30) {
+					it->epos.y += it->txsz.y / 30;
+				}
+				else {
+					it->epos.x += dx * Scene::DeltaTime();
+				}
+			}
 
+			if (move_max <= 0 && move_y != 30) {
+				move_y++;
+			}
+			if (move_max <= 0 && move_y == 30) {
+				dx *= -1;
+				move_max = 200;
+				move_y = 0;
+			}
+		}
 	}
 
 	void hitw(Walls& wall);
@@ -365,7 +372,7 @@ public:
 
 
 	void reset(const Size& txsz) {
-		if (enemies.isEmpty() == false) {
+		if (enemies.empty() == false) {
 			enemies.clear();
 		}
 		ColorF enmyc = { 0, 0, 0 };
@@ -716,7 +723,9 @@ void Main()
 {
 	// 背景の色を設定する | Set the background color
 	Scene::SetBackground(ColorF{ Palette::Black });
-
+	Start start;
+	Over Over;
+	String Game_State = U"start";
 	Size txsz_chara{ 30, 30 };
 	Size txsz_bullet{ 15, 20 };
 	Size txsz_obj{ 100,100 };
@@ -738,26 +747,63 @@ void Main()
 
 	while (System::Update())
 	{
-		if (time <= 0s) {
-			time.start();
+		if (Game_State == U"start") {
+			start.View();
+			if (KeyF.pressed()) {
+				Game_State = U"game";
+			}
 		}
-		//Print << time;
-		wall.Draw();
-		pl.Draw();
-		enemy.Draw();
-		pl.move(move_flag);
-		enemy.move();
-		ufo.move(time);
-		shot.calc_shot(pl, enemy, wall, ufo, exflag_e, apos_e, end_flag, score, time, ufo_flag);
-		shot.Draw();
-		enemy.hitw(wall);
-		bomb.calc_eshot(enemy, pl, wall,life, exflag_p, apos_p, move_flag);
-		bomb.Draw();
-		anim.DrawE(apos_e, exflag_e);
-		anim.DrawP(apos_p, exflag_p);
-		ufo.Draw(anim, ufo_flag);
-		font_life(U"Life", life).draw(Arg::bottomLeft(0, 600));
-		font(U"Score\n", score).draw(0, 0);
+		if (Game_State == U"game") {
+			if (end_flag == false) {
+				if (time <= 0s) {
+					time.start();
+				}
+				//Print << time;
+				if (pl.Get_life() <= 0) {
+					Game_State = U"over";
+				}
+				pl.move(move_flag);
+				enemy.move();
+				ufo.move(time);
+				shot.calc_shot(pl, enemy, wall, ufo, exflag_e, apos_e, end_flag, score, time, ufo_flag);
+				shot.Draw();
+				enemy.hitw(wall);
+				bomb.calc_eshot(enemy, pl, wall, life, exflag_p, apos_p, move_flag);
+				bomb.Draw();
+				anim.DrawE(apos_e, exflag_e);
+				anim.DrawP(apos_p, exflag_p);
+				ufo.Draw(anim, ufo_flag);
+				wall.Draw();
+				pl.Draw();
+				enemy.Draw();
+				font_life(U"Life", life).draw(Arg::bottomLeft(0, 600));
+				font(U"Score\n", score).draw(0, 0);
+			}
+			if (end_flag == true) {
+				wall.reset(txsz_obj);
+				pl.reset();
+				enemy.reset(txsz_chara);
+				ufo.reset();
+				end_flag = false;
+				System::Sleep(1s);
+			}
+		}
+		if (Game_State == U"over") {
+			Over.View();
+			if (KeyR.pressed()) {
+				wall.reset(txsz_obj);
+				pl.reset();
+				pl.life_reset();
+				score = 0;
+				enemy.reset(txsz_chara);
+				ufo.reset();
+				end_flag = false;
+				System::Sleep(1s);
+			}
+			if (KeyQ.pressed()) {
+				System::Exit();
+			}
+		}
 	}
 }
 
