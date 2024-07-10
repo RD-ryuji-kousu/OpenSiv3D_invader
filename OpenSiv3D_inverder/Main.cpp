@@ -125,13 +125,14 @@ private:
 	Size sz;
 	bool bullet_max;
 	Texture beam{ U"inverder_png/beam1.png" };
-	const Audio sounds{};
+	const Audio sounds{U"inverder_mp3/shot.mp3"};
+	double volume;
 	Vec2 bpos, beamV;
 	ColorF beamc;
 public:
 	/// @brief コンストラクタ
 	/// @param[in] _sz 描画されるテクスチャのサイズ
-	Shot(Size _sz) :bullet_max(false), sz(_sz), bpos(Vec2(-40, -40)) {
+	Shot(Size _sz) :bullet_max(false), sz(_sz), bpos(Vec2(-40, -40)), volume(0.5) {
 		beamc = Palette::Seagreen;
 		beamV = { 0,400 };
 	}
@@ -162,11 +163,13 @@ private:
 	Size sz;
 	Texture explode, anim;
 	Vec2 apos;
+	const Audio sound{ U"inverder_mp3/explode.mp3" };
+	double volume;
 	ColorF color;
 public:
 	/// @brief コンストラクタ
 	/// @param _sz テクスチャのサイズ
-	HitAnim(Size _sz) : sz(_sz), explode(U"inverder_png/delete.png"),
+	HitAnim(Size _sz) : sz(_sz), explode(U"inverder_png/delete.png"), volume(0.5),
 		anim(U"inverder_png/delete_anim.png"), apos(-40, -40), color(Palette::Azure), fpsc_e(0), fpsc_p(0) {}
 	/// @brief 敵被弾時アニメーション描画
 	/// @param[in] pos 被弾した敵座標
@@ -174,9 +177,12 @@ public:
 	void DrawE(Vec2& pos, bool& flag) {
 		if (flag == true) {
 			if (fpsc_e >= 0 && fpsc_e <= 7) {
+				sound.setVolume(volume);
+				sound.play();
 				explode.resized(sz).drawAt(pos, color);
 			}
 			else {
+				sound.stop(0.5s);
 				anim.resized(sz).drawAt(pos, color);
 				if (fpsc_e == 15) {
 					pos = { -40, 40 };
@@ -532,13 +538,15 @@ class Bonus {
 private:
 	Texture Ufo{ U"inverder_png/bonus_e.png" };
 	Texture break_anim{ U"inverder_png/bonus_break.png" };
+	const Audio sound{ U"inverder_mp3/fly.mp3", Loop::Yes};
+	double volume;
 	Vec2 bpos, moveV, apos;
 	ColorF color;
 	Size sz;
 	bool moveF;
 	int anim;
 public:
-	Bonus(Size _sz) :sz(_sz), color(Palette::Crimson), moveV(Vec2{90,0})
+	Bonus(Size _sz) :sz(_sz), color(Palette::Crimson), moveV(Vec2{90,0}), volume(0.5)
 	, bpos(Vec2(-20, 100)), apos(Vec2(-20, 100)), anim(0), moveF(false){}
 	void Draw(HitAnim& hit, bool& flag) {
 		if (flag == false) {
@@ -560,6 +568,7 @@ public:
 
 	void move(Stopwatch& time) {
 		if (time >= 30s) {
+			sound.play();
 			if (moveF == false) {
 				bpos += moveV * Scene::DeltaTime();
 				if (bpos.x >= 800) {
@@ -587,6 +596,7 @@ public:
 		double y0 = bpos.y - sz.y, y1 = bpos.y + sz.y;
 		if (y0 < sy1 && sy0 < y1) {
 			if (x0 < sx1 && sx0 < x1) {
+				sound.stop();
 				if (moveF == false) {
 					apos = bpos;
 					bpos = { -40, 100 };
@@ -629,7 +639,7 @@ private:
 	Texture shot{U"inverder_png/enemybomb.png"};
 	Vec2 bpos, shotV;
 	ColorF color;
-	Size sz;
+	Size sz;	
 	bool bomb_flag;
 	int rate;
 	double bomb_line;
@@ -695,6 +705,9 @@ void Shot::calc_shot(const Player& pl, Enemies& enemy, Walls& wall, Bonus& ufo,
 		if (KeySpace.pressed()) {
 			bpos = pl.jikipos();
 			bullet_max = true;
+			sounds.setVolume(volume);
+			sounds.playOneShot();
+
 		}
 	}
 	if (bullet_max == true) {
