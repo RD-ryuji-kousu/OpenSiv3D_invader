@@ -74,6 +74,7 @@ public:
 				}
 			}
 		}
+		//被弾時の処理
 		else
 		{
 			if (ret != 0) {
@@ -107,13 +108,16 @@ public:
 	Size& jikisz(){
 		return txsz;
 	}
+	//ライフを得る
 	int Get_life()const {
 		return life;
 	}
+	//リセット関数
 	void reset() {
 		ret = 120;
 		plpos = PL_START_POS;
 	}
+	//ライフのリセット
 	void life_reset() {
 		life = 3;
 	}
@@ -147,11 +151,18 @@ public:
 	const Vec2& Get_bpos()const {
 		return bpos;
 	}
+	/// @brief 描画サイズを返す
+	/// @return 描画サイズ
 	const Size& Get_sz()const {
 		return sz;
 	}
+	/// @return テクスチャ原寸大のサイズ 
 	const Size& Get_txsz()const {
 		return beam.size();
+	}
+	void reset_shot() {
+		bpos = { -40, -40 };
+		bullet_max = false;
 	}
 
 };
@@ -193,6 +204,9 @@ public:
 			fpsc_e++;
 		}
 	}
+	/// @brief プレイヤーの被弾時アニメーション描画
+	/// @param[in] pos 被弾したときの自機座標
+	/// @param[in, out] flag アニメーションをtrueの時描画
 	void DrawP(Vec2& pos, bool& flag) {
 		if (flag == true) {
 			if (fpsc_p >= 0 && fpsc_p <= 60) {
@@ -239,13 +253,18 @@ private:
 	double move_max;
 	int move_y;
 	int part = 0;
+	int move_x;
+	int max_enm;
+	int accel;
+	double min_x, max_x;
+	double dx2;
 public:
 	//コンストラクタ
 	///@param[in]テクスチャのサイズ
-	Enemies(const Size& txsz):move_max(100), move_y(0) {
-		ColorF enmyc = { 0, 0, 0 };
-		FilePathView path = U".", anim = U".";
-		int point = 0;
+	Enemies(const Size& txsz):move_max(100), move_y(0), min_x(0), max_x(0), move_x(0), accel(0), dx2(0) {
+		ColorF enmyc = { 0, 0, 0 };//描画の色
+		FilePathView path = U".", anim = U".";	///ファイルパスの初期化
+		int point = 0;	//列ごとに設定される敵の点数
 		for (int y = 0; y < 5; y++) {
 			for (int x = 0; x < 11; x++) {
 				switch (y)
@@ -288,6 +307,7 @@ public:
 			}
 
 		}
+		max_enm = (int)enemies.max_size();
 	}
 	/// @brief 敵の描画
 	void Draw() {
@@ -307,7 +327,9 @@ public:
 	/// @param[in] bpos 自機の弾の位置
 	/// @param[in] shot_sz 自機の弾のサイズ 
 	/// @param[in, out] anim 被弾したとき描画するためのtrue,falseを返す, 被弾したときtrue
-	/// @param[out] apos アニメーションの描画位置 
+	/// @param[out] apos アニメーションの描画位置
+	/// @param[in, out] end_flag 敵が一匹も残っていない場合はtrueを返す
+	/// @param[in, out] score
 	/// @return 当たったらtrueを返す
 	bool hit(const Vec2& bpos, const Size& shot_sz, bool& anim, Vec2& apos, bool& end_flag, int& score) {
 		for (auto it = enemies.begin(); it != enemies.end();) {
@@ -333,32 +355,118 @@ public:
 
 		return false;
 	}
+	/// @brief 敵の挙動
 	void move() {
-		if (enemies.empty() == false) {
-			move_max -= abs(dx * Scene::DeltaTime());
-			for (auto it = enemies.begin(); it != enemies.end(); it++) {
+		double min_ix = 0, max_ix = 0, tmp = 0;
 
-				if (move_max <= 0 && move_y != 30) {
-					it->epos.y += it->txsz.y / 30;
-				}
-				else {
-					it->epos.x += dx * Scene::DeltaTime();
-				}
-			}
-
+		int i = 0, j = 0;
+		//最大横移動距離を減算
+		move_max -= abs(dx * Scene::DeltaTime());
+		if (30 >= enemies.max_size()&&accel == 0) {
+			dx += 30;
+			accel = 1;
+		}
+		if (15 >= enemies.max_size() && accel == 1) {
+			dx += 30;
+			accel = 2;
+		}
+		if (enemies.max_size() <= 1 && accel == 2) {
+			dx += 100;
+			accel = 3;
+		}
+		
+		for (auto it = enemies.begin(); it != enemies.end(); it++) {
+			//横移動済みの場合縦に一キャラ分下がる
 			if (move_max <= 0 && move_y != 30) {
-				move_y++;
+				it->epos.y += it->txsz.y / 30;
+					if (dx < 0) {
+						for (auto it2 = enemies.begin(); it2 != enemies.end(); it2++, i++) {
+							if (i == 0)tmp = enemies.begin()->epos.x;
+							if (i >= 1 && it2->epos.x < tmp) {
+								tmp = it2->epos.x;
+							}
+						}
+						min_ix = tmp;
+						tmp = 0;
+						i = 0;
+					}
+					if (dx > 0) {
+
+						for (auto it2 = enemies.rbegin(); it2 != enemies.rend(); it2++, i++) {
+							if (i == 0) {
+								tmp = enemies.rbegin()->epos.x;
+							}
+							if (i >= 1 && it2->epos.x < tmp) {
+								tmp = it2->epos.x;
+							}
+						}
+						max_ix = tmp;
+						tmp = 0;
+						i = 0;
+
+					}
+				
 			}
-			if (move_max <= 0 && move_y == 30) {
-				dx *= -1;
-				move_max = 200;
-				move_y = 0;
+			else {
+				it->epos.x += dx * Scene::DeltaTime();
+				
+				if (it->epos.x < 44) {
+				dx2 += 44 - it->epos.x;
+					
+				}
+				if (it->epos.x > 750) {
+				dx2 += it->epos.x - 750;
+
+				}
+					
 			}
+		}
+		//縦移動処理
+		if (move_max <= 0 && move_y != 30) {
+			move_y++;
+		}
+		if (move_max <= 0) {
+			
+			if (dx < 0) {
+				if (min_ix != 0 && min_x == 0 || min_ix < min_x) {
+					min_x = min_ix;
+				}
+				else if (min_ix > min_x) {
+					min_x = min_ix;
+					move_x++;
+					move_max += 45;
+				}
+			}
+			if (dx > 0) {
+				if (max_ix != 0 && max_x == 0 || max_ix > max_x) {
+					max_x = max_ix;
+				}
+				else if (max_ix < max_x) {
+					max_x = max_ix;
+					move_x++;
+					move_max += 45;
+				}
+			}
+			if (dx2 > 0) {
+				for (auto it = enemies.begin(); it != enemies.end(); it++) {
+					it->epos.x -= dx2;
+				}
+				dx = 0;
+			}
+		}
+		
+		//移動方向の反転
+		if (move_max <= 0 && move_y == 30) {
+			dx *= -1;
+			move_max = 200 + (45 * move_x);
+			move_y = 0;
 		}
 	}
 
 	void hitw(Walls& wall);
 
+	
+	/// @return　ランダム縦列一番下のインベーダーの座標を返す 
 	Vec2 rand_epos()const {
 		double rx = Sample(enemies).epos.x, dy = 0;
 		int i = 0, index = 0;
@@ -376,7 +484,8 @@ public:
 		return Vec2(rx, dy);
 	}
 
-
+	/// @brief インベーダーの配置などをリセット
+	/// @param txsz テクスチャの描画サイズ
 	void reset(const Size& txsz) {
 		if (enemies.empty() == false) {
 			enemies.clear();
@@ -385,6 +494,8 @@ public:
 		FilePathView path = U".", anim = U".";
 		int point = 0;
 		part = 0;
+		dx = 20, move_x = 0, accel = 0;
+		min_x = 0, max_x = 0, move_max = 200;
 		for (int y = 0; y < 5; y++) {
 			for (int x = 0; x < 11; x++) {
 				switch (y)
@@ -427,26 +538,37 @@ public:
 			}
 
 		}
+		max_enm = (int)enemies.max_size();
 	}
 
 };
 
+//壁一つの描画情報クラス
 class Wall : public DynamicTexture{
 public:
 	Size sz;
 	ColorF color;
 	Vec2 wpos;
 	Image wall;
+ 	/// @brief コンストラクタ
+ 	/// @param _wall 壁のテクスチャ
+ 	/// @param _sz テクスチャの描画サイズ
+ 	/// @param _wpos 描画する中心サイズ
  	Wall(const Image& _wall ,Size _sz, Vec2 _wpos) :DynamicTexture(_wall), sz(_sz), wpos(_wpos),
 		color(Palette::Red), wall(_wall) {
 		
 	}
+	/// @brief 壁の破壊処理
+	/// @param[in] bpos 弾の位置情報
+	/// @param[in] bsz 弾のサイズ
+	/// @return 壁の貫通率
 	double Break_wall(const Vec2& bpos, const SizeF& bsz) {
-		int count = 0;
-		int x0 = (int)bpos.x;
-		int x1 = (int)bpos.x + bsz.x;
-		int y0 = (int)bpos.y;
-		int y1 = (int)bpos.y + bsz.y;
+		int count = 0;	//色のある場所と重なった回数
+		int x0 = (int)bpos.x;	//ループの開始位置ｘ
+		int x1 = (int)bpos.x + bsz.x;	//ループ終了地点ｘ
+		int y0 = (int)bpos.y;		//ループ開始位置 y
+		int y1 = (int)bpos.y + bsz.y;	//ループ終了位置ｙ
+		
 		if (x0 < 0) {
 			x0 = 0;
 		}
@@ -459,8 +581,10 @@ public:
 		if (y1 > wall.height()) {
 			y1 = wall.height();
 		}
+
 		for (int y = y0; y < y1; y++) {
 			for (int x = x0; x < x1; x++) {
+				//色がある所の色を消す
 				if (wall[y][x].a != 0) {
 					count++;
 					wall[y][x].a = 0;
@@ -479,6 +603,8 @@ class Walls {
 private:
 	Array<Wall> walls;
 public:
+	/// @brief コンストラクタ
+	/// @param sz 描画サイズ
 	Walls(const Size& sz) {
 		for (int i = 0; i < 4; i++) {
 			walls << Wall(Image{ U"inverder_png/zangou.png" }, sz, Vec2(150 + (i * sz.x) + (i * 65), 480));
@@ -533,7 +659,7 @@ public:
 	}
 };
 
-
+/// @brief ボーナスエネミーのクラス
 class Bonus {
 private:
 	Texture Ufo{ U"inverder_png/bonus_e.png" };
@@ -546,8 +672,13 @@ private:
 	bool moveF;
 	int anim;
 public:
+	/// @brief コンストラクタ
+	/// @param _sz 描画サイズ
 	Bonus(Size _sz) :sz(_sz), color(Palette::Crimson), moveV(Vec2{90,0}), volume(0.5)
 	, bpos(Vec2(-20, 100)), apos(Vec2(-20, 100)), anim(0), moveF(false){}
+	/// @brief ボーナスエネミーの描画
+	/// @param hit ヒット時描画
+	/// @param flag ヒット後のアニメーションが終わったか否か
 	void Draw(HitAnim& hit, bool& flag) {
 		if (flag == false) {
 			Ufo.resized(sz).drawAt(bpos, color);
@@ -565,7 +696,8 @@ public:
 			anim++;
 		}
 	}
-
+	/// @brief ボーナスエネミーの動き
+	/// @param time 出現までの時間
 	void move(Stopwatch& time) {
 		if (time >= 30s) {
 			sound.play();
@@ -573,6 +705,7 @@ public:
 				bpos += moveV * Scene::DeltaTime();
 				if (bpos.x >= 800) {
 					bpos = { 840, 100 };
+					sound.stop();
 					time.reset();
 					moveF = true;
 				}
@@ -581,6 +714,7 @@ public:
 			{
 				bpos -= moveV * Scene::DeltaTime();
 				if (bpos.x <= 0) {
+					sound.stop();
 					bpos = { -40, 100 };
 					time.reset();
 					moveF = false;
@@ -588,19 +722,27 @@ public:
 			}
 		}
 	}
-
+	/// @brief ボーナスエネミーのヒット判定
+	/// @param[in, out] spos 自機の弾の位置 
+	/// @param[in] ssz 自機弾の描画サイズ
+	/// @param[in, out] time ボーナスエネミーの出現タイミング 
+	/// @param[in, out] score スコアの加算
+	/// @param[in, out] flag trueの時ボーナスエネミーのヒット時アニメーションを描画する
+	/// @return 当たったらtrue
 	bool hit(Vec2& spos, const Size& ssz, Stopwatch& time, int& score, bool& flag) {
-		double sx0 = spos.x - ssz.x, sx1 = spos.x + ssz.x;
-		double sy0 = spos.y - ssz.y, sy1 = spos.y - ssz.y;
-		double x0 = bpos.x - sz.x, x1 = bpos.x + sz.x;
-		double y0 = bpos.y - sz.y, y1 = bpos.y + sz.y;
-		if (y0 < sy1 && sy0 < y1) {
-			if (x0 < sx1 && sx0 < x1) {
-				sound.stop();
-				if (moveF == false) {
-					apos = bpos;
-					bpos = { -40, 100 };
-					time.reset();
+
+		double sx0 = spos.x - ssz.x / 2, sx1 = spos.x + ssz.x / 2;//弾のｘ左端と、右端
+		double sy0 = spos.y - ssz.y / 2 , sy1 = spos.y - ssz.y / 2;//弾のｙ上端、下端
+		double x0 = bpos.x - sz.x / 2, x1 = bpos.x + sz.x / 2;//ufoのｘ左端、右端
+		double y0 = bpos.y - sz.y / 2, y1 = bpos.y + sz.y / 2;//ufoｙ上端、下端
+		//命中判定
+		if (y0 < sy1 && sy0 < y1) {//弾のｙとufoのｙの重なり
+			if (x0 < sx1 && sx0 < x1) {//弾のｘとufoのｘの重なり
+				sound.stop();	//弾が命中した時点で効果音を止める
+				if (moveF == false) {//動いてる方向が左
+					apos = bpos;	//被弾したときのアニメーションの位置
+					bpos = { -40, 100 };	//右側の出現地点
+					time.reset();//出現までのカウントをリセット
 					moveF = true;
 					score += 300;
 					flag = true;
@@ -626,14 +768,15 @@ public:
 	}
 };
 
-
+/// @brief 壁とエネミーが重なった時壁を削る
+/// @param[in,out] wall 壁の描画情報を更新する
 void Enemies::hitw(Walls& wall) {
 	for (auto it = enemies.begin(); it != enemies.end(); it++) {
 		if (wall.hit(it->epos, it->txsz) == true)break;
 	}
 }
 
-
+//敵の弾の管理クラス
 class Eshot {
 private:
 	Texture shot{U"inverder_png/enemybomb.png"};
@@ -643,65 +786,119 @@ private:
 	bool bomb_flag;
 	int rate;
 	double bomb_line;
+	Stopwatch invincible{ StartImmediately::No };
 public:
+	/// @brief コンストラクタ
+	/// @param _sz 描画サイズ
 	Eshot(Size _sz) : bpos(Vec2(-80, -80)), shotV(Vec2(0, 200)),bomb_line(0.0),
 		color(Palette::Yellow), sz(_sz), bomb_flag(false), rate(Random<int>(30, 60)){
 	}
+	//描画
 	void Draw() {
 		shot.resized(sz).drawAt(bpos, color);
 	}
-	void calc_eshot(const Enemies& enemy, const Player& pl, Walls& wall,int& life, bool& anim, Vec2& apos, bool& flag) {
-		if (bomb_flag == false && rate == 0) {
-			bpos = enemy.rand_epos();
-			bomb_line = bpos.y;
-			bomb_flag = true;
+	/// @brief 弾の挙動
+	/// @param[in] enemy	敵の情報
+	/// @param[in] pl	自機の情報
+	/// @param[in, out] wall	壁の情報
+	/// @param[in, out] life	残りライフ数
+	/// @param[in, out] anim	trueの時アニメーションの描画を始める
+	/// @param[in, out] apos	アニメーションの描画位置
+	/// @param[in, out] flag	falseの時自機の移動を制限する
+	void calc_eshot(const Enemies& enemy, const Player& pl, Walls& wall, Shot& shot,
+		int& life, bool& anim, Vec2& apos, bool& flag, bool& hitf) {
+		double sx0 = shot.Get_bpos().x - shot.Get_sz().x / 2, sx1 = shot.Get_bpos().x + shot.Get_sz().x / 2;
+		double sy0 = shot.Get_bpos().y - shot.Get_sz().y / 2, sy1 = shot.Get_bpos().y + shot.Get_sz().y / 2;
+		double ix0 = bpos.x - sz.x / 2, ix1 = bpos.x + sz.x / 2;
+		double iy0 = bpos.y - sz.y / 2, iy1 = bpos.y + sz.y / 2;
+		if (hitf == true) {
+			invincible.start();
 		}
-		else {
+		if (invincible > 1.5s) {
+			hitf = false;
+			invincible.reset();
+		}
+
+		if (bomb_flag == false && rate == 0) {	//弾が画面上にないかつ発射レートが0のとき
+			bpos = enemy.rand_epos();	//弾の発射位置
+			bomb_line = bpos.y;		//弾のｙ位置を保存
+			bomb_flag = true;		//弾の発射フラグをtrue
+		}
+		
+		else {//弾射出中			
 			
 			if (bomb_line + 30 >= 520) {
 				bomb_flag = false;
 				bpos = { -40,-40 };
-				rate = Random<int>(30, 60);
+				rate = Random<int>(30, 60); //30～60のランダムレート（フレーム）
 			}
 			else {
+				
 				bpos += shotV * Scene::DeltaTime();
-				if (bpos.y >= 600) {
+				if (bpos.y >= 600) {//弾が画面下に到達したら消す
 					bomb_flag = false;
 					bpos = { -40, -40 };
 					rate = Random<int>(30, 60);
 				}
-				if (pl.jikipos().y - pl.jikisz().y / 2 <= bpos.y + sz.y / 2) {
-					if (pl.jikipos().x - pl.jikisz().x <= bpos.x - sz.x &&
-						pl.jikipos().x + pl.jikisz().x >= bpos.x - sz.x ||
-						pl.jikipos().x - pl.jikisz().x <= bpos.x + sz.x &&
-						pl.jikipos().x + pl.jikisz().x >= bpos.x + sz.x) {
+				//自機に命中した時
+				if (hitf == false && (pl.jikipos().y - pl.jikisz().y / 2 <= bpos.y + sz.y / 2)) {
+					if ((pl.jikipos().x - pl.jikisz().x <= bpos.x - sz.x &&
+						pl.jikipos().x + pl.jikisz().x >= bpos.x - sz.x) ||
+						(pl.jikipos().x - pl.jikisz().x <= bpos.x + sz.x &&
+						pl.jikipos().x + pl.jikisz().x >= bpos.x + sz.x)) {
 						life--;
 						anim = true;
 						flag = false;
 						apos = pl.jikipos();
+						hitf = true;
 						bomb_flag = false;
 						bpos = { -40, -40 };
 						rate = Random<int>(30, 60);
 					}
 				}
+				//壁に命中した時
 				if (wall.hit(bpos, sz) == true) {
 					bomb_flag = false;
 					//Print << U"!!!";
 					bpos = { -40, -40 };
 					rate = Random<int>(30, 60);
 				}
+				if (iy0 < sy1 && sy0 < iy1) {
+					if (ix0 < sx1 && sx0 < ix1) {
+						anim = true;
+						bomb_flag = false;
+						bpos = { -40, -40 };
+						rate = Random<int>(30, 60);
+						shot.reset_shot();
+					}
+				}
 			}
 			rate--;
 		}
 	}
-
+	//現在描画されている弾を消す
+	void Delete_bomb() {
+		bomb_flag = false;
+		bpos = { -40, -40 };
+		rate = Random<int>(30, 60);
+	}
 };
 
 
-
+/// @brief 自機の弾の動き
+/// @param[in] pl 自機の情報
+/// @param[in] enemy 敵の情報
+/// @param[in] wall 壁の情報
+/// @param[in]ufo ボーナスエネミーの情報
+/// @param[in, out] anim trueの時アニメーションの描画
+/// @param[in, out] apos アニメーションの描画位置
+/// @param[in, out] end_flag ゲーム終了判定、trueの時終了
+/// @param[in, out] score 獲得したスコア
+/// @param[in, out] time ボーナスエネミーの出現時間
+/// @param[in, out] bonus_flag ボーナスエネミーの出現フラグ
 void Shot::calc_shot(const Player& pl, Enemies& enemy, Walls& wall, Bonus& ufo,
 	bool& anim, Vec2& apos, bool& end_flag, int& score, Stopwatch& time, bool& bonus_flag) {
-	if (bullet_max == false ) {
+	if (bullet_max == false ) {		//画面上に自機の弾がない
 		if (KeySpace.pressed()) {
 			bpos = pl.jikipos();
 			bullet_max = true;
@@ -710,8 +907,10 @@ void Shot::calc_shot(const Player& pl, Enemies& enemy, Walls& wall, Bonus& ufo,
 
 		}
 	}
+	//画面上に弾がある
 	if (bullet_max == true) {
 		bpos -= beamV * Scene::DeltaTime();
+		//弾が画面外に行った時弾を消す
 		if (bpos.y < 0) {
 			bpos = { -40, -40 };
 			bullet_max = false;
@@ -753,10 +952,11 @@ void Main()
 	Eshot bomb(txsz_bullet);
 	HitAnim anim(txsz_chara);
 	Bonus ufo(txsz_chara);
-	Stopwatch time{ StartImmediately::No };
+	Stopwatch time{ StartImmediately::No }, end_time{StartImmediately::No};
 	bool exflag_e = false, exflag_p = false, move_flag = true;
 	Vec2 apos_e{ -40,-40 }, apos_p{ -40, -40 };
 	Font font_life{ 20 };
+	bool pl_invincible = true;
 
 	while (System::Update())
 	{
@@ -772,7 +972,7 @@ void Main()
 					time.start();
 				}
 				//Print << time;
-				if (pl.Get_life() <= 0) {
+				if (life <= 0) {
 					Game_State = U"over";
 				}
 				pl.move(move_flag);
@@ -781,7 +981,7 @@ void Main()
 				shot.calc_shot(pl, enemy, wall, ufo, exflag_e, apos_e, end_flag, score, time, ufo_flag);
 				shot.Draw();
 				enemy.hitw(wall);
-				bomb.calc_eshot(enemy, pl, wall, life, exflag_p, apos_p, move_flag);
+				bomb.calc_eshot(enemy, pl, wall, shot, life, exflag_p, apos_p, move_flag, pl_invincible);
 				bomb.Draw();
 				anim.DrawE(apos_e, exflag_e);
 				anim.DrawP(apos_p, exflag_p);
@@ -793,12 +993,25 @@ void Main()
 				font(U"Score\n", score).draw(0, 0);
 			}
 			if (end_flag == true) {
-				wall.reset(txsz_obj);
-				pl.reset();
-				enemy.reset(txsz_chara);
-				ufo.reset();
-				end_flag = false;
-				System::Sleep(1s);
+				end_time.start();
+				if (end_time <= 1s) {
+					bomb.Delete_bomb();
+					pl.Draw();
+					wall.Draw();
+					anim.DrawE(apos_e, exflag_e);
+					font_life(U"Life", life).draw(Arg::bottomLeft(0, 600));
+					font(U"Score\n", score).draw(0, 0);
+				}
+				else {
+					wall.reset(txsz_obj);
+					pl.reset();
+					enemy.reset(txsz_chara);
+					ufo.reset();
+					time.reset();
+					end_time.reset();
+					end_flag = false;
+					System::Sleep(1s);
+				}
 			}
 		}
 		if (Game_State == U"over") {
@@ -806,7 +1019,7 @@ void Main()
 			if (KeyR.pressed()) {
 				wall.reset(txsz_obj);
 				pl.reset();
-				pl.life_reset();
+				life = 3;
 				score = 0;
 				enemy.reset(txsz_chara);
 				ufo.reset();
