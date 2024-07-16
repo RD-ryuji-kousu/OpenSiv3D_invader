@@ -1,4 +1,5 @@
 ﻿# include <Siv3D.hpp> // Siv3D v0.6.14
+#define FRAME_TIME (1.0/60) //Scene::DeltaTime()
 
 //スタート画面
 class Start {
@@ -59,7 +60,7 @@ public:
 		if (flag == true) {
 			//左移動
 			if (KeyLeft.pressed() || KeyA.pressed()) {
-				plpos.x -= dx * Scene::DeltaTime();
+				plpos.x -= dx * FRAME_TIME;
 				//自機の左端が画面外からでないようにする
 				if ((plpos.x - (txsz.x / 2)) <= 0) {
 					plpos.x = 0 + txsz.x / 2;
@@ -67,7 +68,7 @@ public:
 			}
 			//右移動
 			if (KeyRight.pressed() || KeyD.pressed()) {
-				plpos.x += dx * Scene::DeltaTime();
+				plpos.x += dx * FRAME_TIME;
 				//自機の右端が画面外からでないようにする
 				if ((plpos.x + (txsz.x / 2)) >= 800) {
 					plpos.x = 800 - txsz.x / 2;
@@ -233,6 +234,7 @@ public:
 	Vec2 epos;
 	Texture anim;
 	int score;
+	int x, y;
 	/// @brief コンストラクタ
 	/// @param[in] _enemy_pos 敵のテクスチャ
 	/// @param[in] _anim アニメーション
@@ -240,8 +242,10 @@ public:
 	/// @param[in] _txsz テクスチャサイズ
 	/// @param[in] _epos 敵一体の座標
 	/// @param[in] _score 敵一体から獲得できるスコア
-	Enemy(const Texture& _enemy_pos, const Texture& _anim,ColorF _color, Size _txsz, Vec2 _epos, int _score) :
-		Texture(_enemy_pos), anim(_anim), color(_color), txsz(_txsz), epos(_epos), score(_score){		
+	Enemy(const Texture& _enemy_pos, const Texture& _anim,ColorF _color,
+		Size _txsz, Vec2 _epos, int _score, int _x, int _y) :
+		Texture(_enemy_pos), anim(_anim), color(_color), txsz(_txsz), epos(_epos), score(_score)
+	, x(_x), y(_y){
 	}
 };
 
@@ -256,12 +260,14 @@ private:
 	int move_x;
 	int max_enm;
 	int accel;
+	int cx1, cx2;
 	double min_x, max_x;
 	double dx2;
 public:
 	//コンストラクタ
 	///@param[in]テクスチャのサイズ
-	Enemies(const Size& txsz):move_max(100), move_y(0), min_x(0), max_x(0), move_x(0), accel(0), dx2(0) {
+	Enemies(const Size& txsz):move_max(100), move_y(0), min_x(0),
+		max_x(0), move_x(0), accel(0), dx2(0), cx1(0), cx2(10) {
 		ColorF enmyc = { 0, 0, 0 };//描画の色
 		FilePathView path = U".", anim = U".";	///ファイルパスの初期化
 		int point = 0;	//列ごとに設定される敵の点数
@@ -303,7 +309,7 @@ public:
 					break;
 				}
 				enemies << Enemy(Texture{ path }, Texture{ anim }, enmyc,
-					txsz, Vec2(150 + x * txsz.x + x * 20, 300 - (y * txsz.y) - (y * 20)), point);
+					txsz, Vec2(150 + x * txsz.x + x * 20, 300 - (y * txsz.y) - (y * 20)), point, x, y);
 			}
 
 		}
@@ -314,10 +320,12 @@ public:
 		for (const auto& enemd : enemies ) {
 			//partを60で割った余りが偶数か奇数かで描画パターンを変える
 			if (IsEven(part / 60)) {
-				enemd.resized(enemd.txsz).drawAt(enemd.epos, enemd.color);
+				enemd.resized(enemd.txsz).drawAt(enemd.epos,
+					(enemies.size() != 1) ? enemd.color : ColorF(Palette::Blueviolet));
 			}
 			else {
-				enemd.anim.resized(enemd.txsz).drawAt(enemd.epos, enemd.color);
+				enemd.anim.resized(enemd.txsz).drawAt(enemd.epos,
+					(enemies.size() != 1) ? enemd.color : ColorF(Palette::Blueviolet));
 			}
 		}
 		//スコアの表示
@@ -357,28 +365,47 @@ public:
 	}
 	/// @brief 敵の挙動
 	void move() {
-		double min_ix = 0, max_ix = 0, tmp = 0;
-
-		int i = 0, j = 0;
+		int countx1 = 0, countx2 = 0;
+		bool loop_f = false;
 		//最大横移動距離を減算
-		move_max -= abs(dx * Scene::DeltaTime());
-		if (30 >= enemies.max_size()&&accel == 0) {
-			dx += 30;
+		move_max -= abs(dx * FRAME_TIME);
+		if (30 >= enemies.size() && accel == 0) {
+			dx +=(dx > 0) ? 10 : -10;
 			accel = 1;
 		}
-		if (15 >= enemies.max_size() && accel == 1) {
-			dx += 30;
+		if (15 >= enemies.size() && accel == 1) {
+			dx += (dx > 0) ?  30 : -30;
 			accel = 2;
 		}
-		if (enemies.max_size() <= 1 && accel == 2) {
-			dx += 100;
+		if (enemies.size() == 1 && accel == 2) {
+			dx +=(dx > 0) ? 100 : -100;
 			accel = 3;
 		}
-		
-		for (auto it = enemies.begin(); it != enemies.end(); it++) {
+		for (auto it = enemies.begin(); it != enemies.end(); ++it) {
+			if (it->x == cx1 && cx1 != cx2) {
+				++countx1;
+			}
+			if (it->x == cx2 && cx1 != cx2) {
+				++countx2;
+			}
+		}
+		if (countx1 == 0 && cx1 != cx2) {
+			cx1++;
+			move_max += 45;
+			move_x++;
+		}
+		if (countx2 == 0 && cx1 != cx2) {
+ 			cx2--;
+			move_max += 45;
+			move_x++;
+		}
+		countx1 = 0;
+		countx2 = 0;
+		for(auto it = enemies.begin(); it != enemies.end(); it++){
 			//横移動済みの場合縦に一キャラ分下がる
 			if (move_max <= 0 && move_y != 30) {
 				it->epos.y += it->txsz.y / 30;
+				/*
 					if (dx < 0) {
 						for (auto it2 = enemies.begin(); it2 != enemies.end(); it2++, i++) {
 							if (i == 0)tmp = enemies.begin()->epos.x;
@@ -396,7 +423,7 @@ public:
 							if (i == 0) {
 								tmp = enemies.rbegin()->epos.x;
 							}
-							if (i >= 1 && it2->epos.x < tmp) {
+							if (i >= 1 && it2->epos.x > tmp) {
 								tmp = it2->epos.x;
 							}
 						}
@@ -405,28 +432,36 @@ public:
 						i = 0;
 
 					}
-				
+				*/
 			}
 			else {
-				it->epos.x += dx * Scene::DeltaTime();
+				it->epos.x += dx * FRAME_TIME;
 				
-				if (it->epos.x < 44) {
-				dx2 += 44 - it->epos.x;
-					
+				if (it->epos.x < 44 && loop_f == false) {
+					dx2 = 44 - it->epos.x;
+					loop_f = true;
 				}
-				if (it->epos.x > 750) {
-				dx2 += it->epos.x - 750;
-
-				}
-					
+				if (it->epos.x > 750 && loop_f == false) {
+					dx2 = 750 - it->epos.x;
+					loop_f = true;
+				
+				Print << dx2;
 			}
+		}
+		}
+		if (dx2 != 0) {
+			for (auto it = enemies.begin(); it != enemies.end(); it++) {
+				it->epos.x += dx2;
+			}
+			dx2 = 0.0;
+			move_max = 0;
 		}
 		//縦移動処理
 		if (move_max <= 0 && move_y != 30) {
 			move_y++;
 		}
 		if (move_max <= 0) {
-			
+			/*
 			if (dx < 0) {
 				if (min_ix != 0 && min_x == 0 || min_ix < min_x) {
 					min_x = min_ix;
@@ -447,12 +482,8 @@ public:
 					move_max += 45;
 				}
 			}
-			if (dx2 > 0) {
-				for (auto it = enemies.begin(); it != enemies.end(); it++) {
-					it->epos.x -= dx2;
-				}
-				dx = 0;
-			}
+			*/
+			
 		}
 		
 		//移動方向の反転
@@ -484,6 +515,21 @@ public:
 		return Vec2(rx, dy);
 	}
 
+	double under_epos()const {
+		double y = 0;
+		for (auto it = enemies.begin(); it != enemies.end(); it++) {
+			if (y == 0) {
+				y = enemies.begin()->epos.y;
+			}
+			else {
+				if (y < it->epos.y) {
+					y = it->epos.y;
+				}
+			}
+		}
+		return y;
+	}
+
 	/// @brief インベーダーの配置などをリセット
 	/// @param txsz テクスチャの描画サイズ
 	void reset(const Size& txsz) {
@@ -496,6 +542,7 @@ public:
 		part = 0;
 		dx = 20, move_x = 0, accel = 0;
 		min_x = 0, max_x = 0, move_max = 200;
+		cx1 = 0, cx2 = 10;
 		for (int y = 0; y < 5; y++) {
 			for (int x = 0; x < 11; x++) {
 				switch (y)
@@ -534,7 +581,7 @@ public:
 					break;
 				}
 				enemies << Enemy(Texture{ path }, Texture{ anim }, enmyc,
-					txsz, Vec2(150 + x * txsz.x + x * 20, 300 - (y * txsz.y) - (y * 20)), point);
+					txsz, Vec2(150 + x * txsz.x + x * 20, 300 - (y * txsz.y) - (y * 20)), point, x, y);
 			}
 
 		}
@@ -702,7 +749,7 @@ public:
 		if (time >= 30s) {
 			sound.play();
 			if (moveF == false) {
-				bpos += moveV * Scene::DeltaTime();
+				bpos += moveV * FRAME_TIME;
 				if (bpos.x >= 800) {
 					bpos = { 840, 100 };
 					sound.stop();
@@ -712,7 +759,7 @@ public:
 			}
 			else
 			{
-				bpos -= moveV * Scene::DeltaTime();
+				bpos -= moveV * FRAME_TIME;
 				if (bpos.x <= 0) {
 					sound.stop();
 					bpos = { -40, 100 };
@@ -779,7 +826,7 @@ void Enemies::hitw(Walls& wall) {
 //敵の弾の管理クラス
 class Eshot {
 private:
-	Texture shot{U"inverder_png/enemybomb.png"};
+	Texture bomb{U"inverder_png/enemybomb.png"};
 	Vec2 bpos, shotV;
 	ColorF color;
 	Size sz;	
@@ -795,7 +842,7 @@ public:
 	}
 	//描画
 	void Draw() {
-		shot.resized(sz).drawAt(bpos, color);
+		bomb.resized(sz).drawAt(bpos, color);
 	}
 	/// @brief 弾の挙動
 	/// @param[in] enemy	敵の情報
@@ -834,7 +881,7 @@ public:
 			}
 			else {
 				
-				bpos += shotV * Scene::DeltaTime();
+				bpos += shotV * FRAME_TIME;
 				if (bpos.y >= 600) {//弾が画面下に到達したら消す
 					bomb_flag = false;
 					bpos = { -40, -40 };
@@ -909,7 +956,7 @@ void Shot::calc_shot(const Player& pl, Enemies& enemy, Walls& wall, Bonus& ufo,
 	}
 	//画面上に弾がある
 	if (bullet_max == true) {
-		bpos -= beamV * Scene::DeltaTime();
+		bpos -= beamV * FRAME_TIME;
 		//弾が画面外に行った時弾を消す
 		if (bpos.y < 0) {
 			bpos = { -40, -40 };
@@ -972,7 +1019,7 @@ void Main()
 					time.start();
 				}
 				//Print << time;
-				if (life <= 0) {
+				if (life <= 0 || enemy.under_epos() + txsz_chara.y > 550) {
 					Game_State = U"over";
 				}
 				pl.move(move_flag);
