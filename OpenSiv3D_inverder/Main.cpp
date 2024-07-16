@@ -913,6 +913,7 @@ public:
 				if (iy0 < sy1 && sy0 < iy1) {
 					if (ix0 < sx1 && sx0 < ix1) {
 						anim = true;
+						apos = { bpos.x + sz.x, bpos.y + sz.y };
 						bomb_flag = false;
 						bpos = { -40, -40 };
 						rate = Random<int>(30, 60);
