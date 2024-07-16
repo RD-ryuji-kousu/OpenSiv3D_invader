@@ -488,7 +488,7 @@ public:
 		
 		//移動方向の反転
 		if (move_max <= 0 && move_y == 30) {
-			dx *= -1;
+			dx = -dx;
 			move_max = 200 + (45 * move_x);
 			move_y = 0;
 		}
