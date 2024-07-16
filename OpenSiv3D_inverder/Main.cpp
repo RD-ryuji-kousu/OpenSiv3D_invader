@@ -262,12 +262,11 @@ private:
 	int accel;
 	int cx1, cx2;
 	double min_x, max_x;
-	double dx2;
 public:
 	//コンストラクタ
 	///@param[in]テクスチャのサイズ
 	Enemies(const Size& txsz):move_max(100), move_y(0), min_x(0),
-		max_x(0), move_x(0), accel(0), dx2(0), cx1(0), cx2(10) {
+		max_x(0), move_x(0), accel(0), cx1(0), cx2(10) {
 		ColorF enmyc = { 0, 0, 0 };//描画の色
 		FilePathView path = U".", anim = U".";	///ファイルパスの初期化
 		int point = 0;	//列ごとに設定される敵の点数
@@ -367,6 +366,7 @@ public:
 	void move() {
 		int countx1 = 0, countx2 = 0;
 		bool loop_f = false;
+		double dx2 = 0;
 		//最大横移動距離を減算
 		move_max -= abs(dx * FRAME_TIME);
 		if (30 >= enemies.size() && accel == 0) {
