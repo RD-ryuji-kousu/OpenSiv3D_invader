@@ -485,7 +485,7 @@ public:
 			enemies.clear();
 		}
 		ColorF enmyc = { 0, 0, 0 };
-		FilePathView path = U".", anim = U".";
+		int i, j;
 		int point = 0;
 		part = 0;
 		dx = 20, move_x = 0, accel = 0;
@@ -497,38 +497,33 @@ public:
 				{
 				case 0:
 					enmyc = { Palette::Magenta };
-					path = U"inverder_png/enemy1.png";
-					anim = U"inverder_png/enemy1_anim.png";
+					i = 0, j = 1;
 					point = 10;
 					break;
 				case 1:
 					enmyc = { Palette::Magenta };
-					path = U"inverder_png/enemy1.png";
-					anim = U"inverder_png/enemy1_anim.png";
+					i = 0, j = 1;
 					point = 10;
 					break;
 				case 2:
 					enmyc = { Palette::Aqua };
-					path = U"inverder_png/enemy2.png";
-					anim = U"inverder_png/enemy2_anim.png";
+					i = 2, j = 3;
 					point = 20;
 					break;
 				case 3:
 					enmyc = { Palette::Aqua };
-					path = U"inverder_png/enemy2.png";
-					anim = U"inverder_png/enemy2_anim.png";
+					i = 2, j = 3;
 					point = 20;
 					break;
 				case 4:
 					enmyc = { Palette::Greenyellow };
-					path = U"inverder_png/enemy3.png";
-					anim = U"inverder_png/enemy3_anim.png";
+					i = 4, j = 5;
 					point = 30;
 					break;
 				default:
 					break;
 				}
-				enemies << Enemy(Texture{ path }, Texture{ anim }, enmyc,
+				enemies << Enemy(enm[i], enm[j], enmyc,
 					txsz, Vec2(150 + x * txsz.x + x * 20, 300 - (y * txsz.y) - (y * 20)), point, x, y);
 			}
 
