@@ -1,5 +1,5 @@
 ﻿# include <Siv3D.hpp> // Siv3D v0.6.14
-#define FRAME_TIME (1.0/60) //Scene::DeltaTime()
+#define FRAME_TIME Scene::DeltaTime() //(1.0/60) 
 
 //スタート画面
 class Start {
@@ -242,6 +242,7 @@ public:
 	/// @param[in] _txsz テクスチャサイズ
 	/// @param[in] _epos 敵一体の座標
 	/// @param[in] _score 敵一体から獲得できるスコア
+	/// @param[in] _x 横列のx番目
 	Enemy(const Texture& _enemy_pos, const Texture& _anim,ColorF _color,
 		Size _txsz, Vec2 _epos, int _score, int _x, int _y) :
 		Texture(_enemy_pos), anim(_anim), color(_color), txsz(_txsz), epos(_epos), score(_score)
@@ -261,12 +262,10 @@ private:
 	int max_enm;
 	int accel;
 	int cx1, cx2;
-	double min_x, max_x;
 public:
 	//コンストラクタ
 	///@param[in]テクスチャのサイズ
-	Enemies(const Size& txsz):move_max(100), move_y(0), min_x(0),
-		max_x(0), move_x(0), accel(0), cx1(0), cx2(10) {
+	Enemies(const Size& txsz):move_max(100), move_y(0), move_x(0), accel(0), cx1(0), cx2(10) {
 		ColorF enmyc = { 0, 0, 0 };//描画の色
 		FilePathView path = U".", anim = U".";	///ファイルパスの初期化
 		int point = 0;	//列ごとに設定される敵の点数
@@ -369,6 +368,7 @@ public:
 		double dx2 = 0;
 		//最大横移動距離を減算
 		move_max -= abs(dx * FRAME_TIME);
+		//敵の残りが減るたび移動速度を上げる
 		if (30 >= enemies.size() && accel == 0) {
 			dx +=(dx > 0) ? 10 : -10;
 			accel = 1;
@@ -381,6 +381,7 @@ public:
 			dx +=(dx > 0) ? 100 : -100;
 			accel = 3;
 		}
+		//両端が減っていないか確認
 		for (auto it = enemies.begin(); it != enemies.end(); ++it) {
 			if (it->x == cx1 && cx1 != cx2) {
 				++countx1;
@@ -389,6 +390,7 @@ public:
 				++countx2;
 			}
 		}
+		//両端が小さくなった場合移動距離を補正
 		if (countx1 == 0 && cx1 != cx2) {
 			cx1++;
 			move_max += 45;
@@ -399,44 +401,16 @@ public:
 			move_max += 45;
 			move_x++;
 		}
-		countx1 = 0;
-		countx2 = 0;
+
 		for(auto it = enemies.begin(); it != enemies.end(); it++){
 			//横移動済みの場合縦に一キャラ分下がる
 			if (move_max <= 0 && move_y != 30) {
-				it->epos.y += it->txsz.y / 30;
-				/*
-					if (dx < 0) {
-						for (auto it2 = enemies.begin(); it2 != enemies.end(); it2++, i++) {
-							if (i == 0)tmp = enemies.begin()->epos.x;
-							if (i >= 1 && it2->epos.x < tmp) {
-								tmp = it2->epos.x;
-							}
-						}
-						min_ix = tmp;
-						tmp = 0;
-						i = 0;
-					}
-					if (dx > 0) {
-
-						for (auto it2 = enemies.rbegin(); it2 != enemies.rend(); it2++, i++) {
-							if (i == 0) {
-								tmp = enemies.rbegin()->epos.x;
-							}
-							if (i >= 1 && it2->epos.x > tmp) {
-								tmp = it2->epos.x;
-							}
-						}
-						max_ix = tmp;
-						tmp = 0;
-						i = 0;
-
-					}
-				*/
+				it->epos.y += (double)it->txsz.y / 30;
 			}
 			else {
-				it->epos.x += dx * FRAME_TIME;
 				
+				it->epos.x += dx * FRAME_TIME;
+				//横にはみ出した場合距離を保存
 				if (it->epos.x < 44 && loop_f == false) {
 					dx2 = 44 - it->epos.x;
 					loop_f = true;
@@ -445,46 +419,22 @@ public:
 					dx2 = 750 - it->epos.x;
 					loop_f = true;
 				
-				Print << dx2;
+				//Print << dx2;
+			}
 			}
 		}
-		}
+		//はみ出した距離がある場合補正する
 		if (dx2 != 0) {
 			for (auto it = enemies.begin(); it != enemies.end(); it++) {
 				it->epos.x += dx2;
 			}
-			dx2 = 0.0;
 			move_max = 0;
 		}
 		//縦移動処理
 		if (move_max <= 0 && move_y != 30) {
 			move_y++;
 		}
-		if (move_max <= 0) {
-			/*
-			if (dx < 0) {
-				if (min_ix != 0 && min_x == 0 || min_ix < min_x) {
-					min_x = min_ix;
-				}
-				else if (min_ix > min_x) {
-					min_x = min_ix;
-					move_x++;
-					move_max += 45;
-				}
-			}
-			if (dx > 0) {
-				if (max_ix != 0 && max_x == 0 || max_ix > max_x) {
-					max_x = max_ix;
-				}
-				else if (max_ix < max_x) {
-					max_x = max_ix;
-					move_x++;
-					move_max += 45;
-				}
-			}
-			*/
-			
-		}
+		
 		
 		//移動方向の反転
 		if (move_max <= 0 && move_y == 30) {
@@ -541,7 +491,7 @@ public:
 		int point = 0;
 		part = 0;
 		dx = 20, move_x = 0, accel = 0;
-		min_x = 0, max_x = 0, move_max = 200;
+		move_max = 200;
 		cx1 = 0, cx2 = 10;
 		for (int y = 0; y < 5; y++) {
 			for (int x = 0; x < 11; x++) {
@@ -848,19 +798,25 @@ public:
 	/// @param[in] enemy	敵の情報
 	/// @param[in] pl	自機の情報
 	/// @param[in, out] wall	壁の情報
+	/// @param[in, out] shot	自機の弾の情報
 	/// @param[in, out] life	残りライフ数
 	/// @param[in, out] anim	trueの時アニメーションの描画を始める
 	/// @param[in, out] apos	アニメーションの描画位置
 	/// @param[in, out] flag	falseの時自機の移動を制限する
+	/// @param[in, out] hitf	trueのとき自機に弾は命中しない
 	void calc_eshot(const Enemies& enemy, const Player& pl, Walls& wall, Shot& shot,
 		int& life, bool& anim, Vec2& apos, bool& flag, bool& hitf) {
+		//自機の弾の左端のx, y及び右端のx, y
 		double sx0 = shot.Get_bpos().x - shot.Get_sz().x / 2, sx1 = shot.Get_bpos().x + shot.Get_sz().x / 2;
 		double sy0 = shot.Get_bpos().y - shot.Get_sz().y / 2, sy1 = shot.Get_bpos().y + shot.Get_sz().y / 2;
+		//敵弾の弾の左端のx, y及び右端のx, y
 		double ix0 = bpos.x - sz.x / 2, ix1 = bpos.x + sz.x / 2;
 		double iy0 = bpos.y - sz.y / 2, iy1 = bpos.y + sz.y / 2;
+		//無敵時間のカウント開始
 		if (hitf == true) {
 			invincible.start();
 		}
+		//1.5sをすぎたら無敵終了
 		if (invincible > 1.5s) {
 			hitf = false;
 			invincible.reset();
@@ -910,6 +866,7 @@ public:
 					bpos = { -40, -40 };
 					rate = Random<int>(30, 60);
 				}
+				//弾同士の命中
 				if (iy0 < sy1 && sy0 < iy1) {
 					if (ix0 < sx1 && sx0 < ix1) {
 						anim = true;
@@ -963,14 +920,17 @@ void Shot::calc_shot(const Player& pl, Enemies& enemy, Walls& wall, Bonus& ufo,
 			bpos = { -40, -40 };
 			bullet_max = false;
 		}
+		//敵に命中したとき
 		if (enemy.hit(bpos, sz, anim, apos, end_flag, score) == true) {
 			bpos = { -40, -40 };
 			bullet_max = false;
 		}
+		//壁と命中したとき
 		if (wall.hit(bpos, sz) == true) {
 			bpos = { -40, -40 };
 			bullet_max = false;
 		}
+		//ボーナスエネミーに命中したとき
 		if (ufo.hit(bpos, sz, time, score, bonus_flag) == true) {
 			bpos = { -40, -40 };
 			bullet_max = false;
