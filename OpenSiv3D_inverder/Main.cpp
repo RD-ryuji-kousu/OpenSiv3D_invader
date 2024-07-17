@@ -227,11 +227,12 @@ public:
 };
 
 /// @brief 敵一体の描画情報クラス
-class Enemy : public Texture{
+class Enemy {
 public:
 	Size txsz;
 	ColorF color;
 	Vec2 epos;
+	Texture enm;
 	Texture anim;
 	int score;
 	int x, y;
@@ -243,9 +244,9 @@ public:
 	/// @param[in] _epos 敵一体の座標
 	/// @param[in] _score 敵一体から獲得できるスコア
 	/// @param[in] _x 横列のx番目
-	Enemy(const Texture& _enemy_pos, const Texture& _anim,ColorF _color,
+	Enemy(const Texture& _enemy_pos, const Texture& _anim, ColorF _color,
 		Size _txsz, Vec2 _epos, int _score, int _x, int _y) :
-		Texture(_enemy_pos), anim(_anim), color(_color), txsz(_txsz), epos(_epos), score(_score)
+		enm(_enemy_pos), anim(_anim), color(_color), txsz(_txsz), epos(_epos), score(_score)
 	, x(_x), y(_y){
 	}
 };
@@ -253,7 +254,9 @@ public:
 class Enemies {
 private:
 	Array<Enemy> enemies;
-	//int score;
+	Texture enm[6] = { (Texture)U"inverder_png/enemy1.png", (Texture)U"inverder_png/enemy1_anim.png",
+	(Texture)U"inverder_png/enemy2.png", (Texture)U"inverder_png/enemy2_anim.png",
+	(Texture)U"inverder_png/enemy3.png", (Texture)U"inverder_png/enemy3_anim.png" };
 	double dx = 20;
 	double move_max;
 	int move_y;
@@ -267,46 +270,41 @@ public:
 	///@param[in]テクスチャのサイズ
 	Enemies(const Size& txsz):move_max(100), move_y(0), move_x(0), accel(0), cx1(0), cx2(10) {
 		ColorF enmyc = { 0, 0, 0 };//描画の色
-		FilePathView path = U".", anim = U".";	///ファイルパスの初期化
 		int point = 0;	//列ごとに設定される敵の点数
+		int i = 0, j = 0;
 		for (int y = 0; y < 5; y++) {
 			for (int x = 0; x < 11; x++) {
 				switch (y)
 				{				
 				case 0:
 					enmyc = { Palette::Magenta };
-					path = U"inverder_png/enemy1.png";
-					anim = U"inverder_png/enemy1_anim.png";
 					point = 10;
+					i = 0, j = 1;
 					break;
 				case 1:
 					enmyc = { Palette::Magenta };
-					path = U"inverder_png/enemy1.png";
-					anim = U"inverder_png/enemy1_anim.png";
 					point = 10;
+					i = 0, j = 1;
 					break;
 				case 2:
 					enmyc = { Palette::Aqua };
-					path = U"inverder_png/enemy2.png";
-					anim = U"inverder_png/enemy2_anim.png";
 					point = 20;
+					i = 2, j = 3;
 					break;
 				case 3:
 					enmyc = { Palette::Aqua };
-					path = U"inverder_png/enemy2.png";
-					anim = U"inverder_png/enemy2_anim.png";
 					point = 20;
+					i = 2, j = 3;
 					break;
 				case 4:
 					enmyc = { Palette::Greenyellow };
-					path = U"inverder_png/enemy3.png";
-					anim = U"inverder_png/enemy3_anim.png";
 					point = 30;
+					i = 4, j = 5;
 					break;
 				default:
 					break;
 				}
-				enemies << Enemy(Texture{ path }, Texture{ anim }, enmyc,
+				enemies << Enemy(enm[i], enm[j], enmyc,
 					txsz, Vec2(150 + x * txsz.x + x * 20, 300 - (y * txsz.y) - (y * 20)), point, x, y);
 			}
 
@@ -318,7 +316,7 @@ public:
 		for (const auto& enemd : enemies ) {
 			//partを60で割った余りが偶数か奇数かで描画パターンを変える
 			if (IsEven(part / 60)) {
-				enemd.resized(enemd.txsz).drawAt(enemd.epos,
+				enemd.enm.resized(enemd.txsz).drawAt(enemd.epos,
 					(enemies.size() != 1) ? enemd.color : ColorF(Palette::Blueviolet));
 			}
 			else {
@@ -487,7 +485,7 @@ public:
 			enemies.clear();
 		}
 		ColorF enmyc = { 0, 0, 0 };
-		FilePathView path = U".", anim = U".";
+		int i, j;
 		int point = 0;
 		part = 0;
 		dx = 20, move_x = 0, accel = 0;
@@ -499,38 +497,33 @@ public:
 				{
 				case 0:
 					enmyc = { Palette::Magenta };
-					path = U"inverder_png/enemy1.png";
-					anim = U"inverder_png/enemy1_anim.png";
+					i = 0, j = 1;
 					point = 10;
 					break;
 				case 1:
 					enmyc = { Palette::Magenta };
-					path = U"inverder_png/enemy1.png";
-					anim = U"inverder_png/enemy1_anim.png";
+					i = 0, j = 1;
 					point = 10;
 					break;
 				case 2:
 					enmyc = { Palette::Aqua };
-					path = U"inverder_png/enemy2.png";
-					anim = U"inverder_png/enemy2_anim.png";
+					i = 2, j = 3;
 					point = 20;
 					break;
 				case 3:
 					enmyc = { Palette::Aqua };
-					path = U"inverder_png/enemy2.png";
-					anim = U"inverder_png/enemy2_anim.png";
+					i = 2, j = 3;
 					point = 20;
 					break;
 				case 4:
 					enmyc = { Palette::Greenyellow };
-					path = U"inverder_png/enemy3.png";
-					anim = U"inverder_png/enemy3_anim.png";
+					i = 4, j = 5;
 					point = 30;
 					break;
 				default:
 					break;
 				}
-				enemies << Enemy(Texture{ path }, Texture{ anim }, enmyc,
+				enemies << Enemy(enm[i], enm[j], enmyc,
 					txsz, Vec2(150 + x * txsz.x + x * 20, 300 - (y * txsz.y) - (y * 20)), point, x, y);
 			}
 
