@@ -232,8 +232,7 @@ public:
 	Size txsz;
 	ColorF color;
 	Vec2 epos;
-	Texture enm;
-	Texture anim;
+	Texture *anim[2];
 	int score;
 	int x, y;
 	/// @brief コンストラクタ
@@ -246,7 +245,7 @@ public:
 	/// @param[in] _x 横列のx番目
 	Enemy(const Texture& _enemy_pos, const Texture& _anim, ColorF _color,
 		Size _txsz, Vec2 _epos, int _score, int _x, int _y) :
-		enm(_enemy_pos), anim(_anim), color(_color), txsz(_txsz), epos(_epos), score(_score)
+		 anim{const_cast<Texture *>(& _enemy_pos), const_cast<Texture *>(&_anim)}, color(_color), txsz(_txsz), epos(_epos), score(_score)
 	, x(_x), y(_y){
 	}
 };
@@ -257,6 +256,7 @@ private:
 	Texture enm[6] = { (Texture)U"inverder_png/enemy1.png", (Texture)U"inverder_png/enemy1_anim.png",
 	(Texture)U"inverder_png/enemy2.png", (Texture)U"inverder_png/enemy2_anim.png",
 	(Texture)U"inverder_png/enemy3.png", (Texture)U"inverder_png/enemy3_anim.png" };
+	ColorF color[3] = { Palette::Magenta, Palette::Aqua, Palette::Greenyellow };
 	double dx = 20;
 	double move_max;
 	int move_y;
@@ -315,14 +315,9 @@ public:
 	void Draw() {
 		for (const auto& enemd : enemies ) {
 			//partを60で割った余りが偶数か奇数かで描画パターンを変える
-			if (IsEven(part / 60)) {
-				enemd.enm.resized(enemd.txsz).drawAt(enemd.epos,
+				enemd.anim[static_cast<int>(IsOdd(part/60))]->resized(enemd.txsz).drawAt(enemd.epos,
 					(enemies.size() != 1) ? enemd.color : ColorF(Palette::Blueviolet));
-			}
-			else {
-				enemd.anim.resized(enemd.txsz).drawAt(enemd.epos,
-					(enemies.size() != 1) ? enemd.color : ColorF(Palette::Blueviolet));
-			}
+			
 		}
 		//スコアの表示
 		part++;
@@ -485,7 +480,7 @@ public:
 			enemies.clear();
 		}
 		ColorF enmyc = { 0, 0, 0 };
-		int i, j;
+		int i = 0, j = 0;
 		int point = 0;
 		part = 0;
 		dx = 20, move_x = 0, accel = 0;
@@ -554,10 +549,10 @@ public:
 	/// @return 壁の貫通率
 	double Break_wall(const Vec2& bpos, const SizeF& bsz) {
 		int count = 0;	//色のある場所と重なった回数
-		int x0 = (int)bpos.x;	//ループの開始位置ｘ
-		int x1 = (int)bpos.x + bsz.x;	//ループ終了地点ｘ
-		int y0 = (int)bpos.y;		//ループ開始位置 y
-		int y1 = (int)bpos.y + bsz.y;	//ループ終了位置ｙ
+		int x0 = static_cast<int>(bpos.x);	//ループの開始位置ｘ
+		int x1 = static_cast<int>(bpos.x + bsz.x);	//ループ終了地点ｘ
+		int y0 = static_cast<int>(bpos.y);		//ループ開始位置 y
+		int y1 = static_cast<int>(bpos.y + bsz.y);	//ループ終了位置ｙ
 		
 		if (x0 < 0) {
 			x0 = 0;
@@ -775,12 +770,11 @@ private:
 	Size sz;	
 	bool bomb_flag;
 	int rate;
-	double bomb_line;
 	Stopwatch invincible{ StartImmediately::No };
 public:
 	/// @brief コンストラクタ
 	/// @param _sz 描画サイズ
-	Eshot(Size _sz) : bpos(Vec2(-80, -80)), shotV(Vec2(0, 200)),bomb_line(0.0),
+	Eshot(Size _sz) : bpos(Vec2(-80, -80)), shotV(Vec2(0, 200)),
 		color(Palette::Yellow), sz(_sz), bomb_flag(false), rate(Random<int>(30, 60)){
 	}
 	//描画
@@ -805,6 +799,7 @@ public:
 		//敵弾の弾の左端のx, y及び右端のx, y
 		double ix0 = bpos.x - sz.x / 2, ix1 = bpos.x + sz.x / 2;
 		double iy0 = bpos.y - sz.y / 2, iy1 = bpos.y + sz.y / 2;
+		double bomb_line = 0.0;
 		//無敵時間のカウント開始
 		if (hitf == true) {
 			invincible.start();
@@ -825,7 +820,7 @@ public:
 			
 			if (bomb_line + 30 >= 520) {
 				bomb_flag = false;
-				bpos = { -40,-40 };
+				bpos = { -40, -40 };
 				rate = Random<int>(30, 60); //30～60のランダムレート（フレーム）
 			}
 			else {
@@ -848,7 +843,7 @@ public:
 						apos = pl.jikipos();
 						hitf = true;
 						bomb_flag = false;
-						bpos = { -40, -40 };
+						bpos = { -40, 40 };
 						rate = Random<int>(30, 60);
 					}
 				}
@@ -856,7 +851,7 @@ public:
 				if (wall.hit(bpos, sz) == true) {
 					bomb_flag = false;
 					//Print << U"!!!";
-					bpos = { -40, -40 };
+					bpos = { -40, 40 };
 					rate = Random<int>(30, 60);
 				}
 				//弾同士の命中
@@ -865,7 +860,7 @@ public:
 						anim = true;
 						apos = { bpos.x + sz.x, bpos.y + sz.y };
 						bomb_flag = false;
-						bpos = { -40, -40 };
+						bpos = { -40, 40 };
 						rate = Random<int>(30, 60);
 						shot.reset_shot();
 					}
@@ -877,7 +872,7 @@ public:
 	//現在描画されている弾を消す
 	void Delete_bomb() {
 		bomb_flag = false;
-		bpos = { -40, -40 };
+		bpos = { -40, 40 };
 		rate = Random<int>(30, 60);
 	}
 };
@@ -897,7 +892,7 @@ public:
 void Shot::calc_shot(const Player& pl, Enemies& enemy, Walls& wall, Bonus& ufo,
 	bool& anim, Vec2& apos, bool& end_flag, int& score, Stopwatch& time, bool& bonus_flag) {
 	if (bullet_max == false ) {		//画面上に自機の弾がない
-		if (KeySpace.pressed()) {
+		if (KeySpace.down()) {
 			bpos = pl.jikipos();
 			bullet_max = true;
 			sounds.setVolume(volume);
