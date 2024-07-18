@@ -233,7 +233,7 @@ public:
 	ColorF color;
 	Vec2 epos;
 	Texture enm;
-	Texture anim;
+	Texture anim[2];
 	int score;
 	int x, y;
 	/// @brief コンストラクタ
@@ -246,8 +246,10 @@ public:
 	/// @param[in] _x 横列のx番目
 	Enemy(const Texture& _enemy_pos, const Texture& _anim, ColorF _color,
 		Size _txsz, Vec2 _epos, int _score, int _x, int _y) :
-		enm(_enemy_pos), anim(_anim), color(_color), txsz(_txsz), epos(_epos), score(_score)
+		/*enm(_enemy_pos), anim(_anim), */ color(_color), txsz(_txsz), epos(_epos), score(_score)
 	, x(_x), y(_y){
+		anim[0] = _enemy_pos;
+		anim[1] = _anim;
 	}
 };
 
@@ -257,6 +259,7 @@ private:
 	Texture enm[6] = { (Texture)U"inverder_png/enemy1.png", (Texture)U"inverder_png/enemy1_anim.png",
 	(Texture)U"inverder_png/enemy2.png", (Texture)U"inverder_png/enemy2_anim.png",
 	(Texture)U"inverder_png/enemy3.png", (Texture)U"inverder_png/enemy3_anim.png" };
+	ColorF color[3] = { Palette::Magenta, Palette::Aqua, Palette::Greenyellow };
 	double dx = 20;
 	double move_max;
 	int move_y;
@@ -315,14 +318,9 @@ public:
 	void Draw() {
 		for (const auto& enemd : enemies ) {
 			//partを60で割った余りが偶数か奇数かで描画パターンを変える
-			if (IsEven(part / 60)) {
-				enemd.enm.resized(enemd.txsz).drawAt(enemd.epos,
+				enemd.anim[(IsEven(part/60)==true)?0:1].resized(enemd.txsz).drawAt(enemd.epos,
 					(enemies.size() != 1) ? enemd.color : ColorF(Palette::Blueviolet));
-			}
-			else {
-				enemd.anim.resized(enemd.txsz).drawAt(enemd.epos,
-					(enemies.size() != 1) ? enemd.color : ColorF(Palette::Blueviolet));
-			}
+			
 		}
 		//スコアの表示
 		part++;
@@ -485,7 +483,7 @@ public:
 			enemies.clear();
 		}
 		ColorF enmyc = { 0, 0, 0 };
-		int i, j;
+		int i = 0, j = 0;
 		int point = 0;
 		part = 0;
 		dx = 20, move_x = 0, accel = 0;
