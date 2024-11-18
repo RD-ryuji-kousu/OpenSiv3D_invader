@@ -42,7 +42,7 @@ const Vec2 PL_START_POS{ 400, 550 };
 class Player {
 private:
 	int life, ret;
-	Texture jiki{ U"inverder_png/jiki.png" };
+	Texture jiki{ U"invader_png/jiki.png" };
 	Vec2 plpos;
 	Size txsz;
 	double dx;
@@ -129,8 +129,8 @@ class Shot {
 private:
 	Size sz;
 	bool bullet_max;
-	Texture beam{ U"inverder_png/beam1.png" };
-	const Audio sounds{U"inverder_mp3/shot.mp3"};
+	Texture beam{ U"invader_png/beam1.png" };
+	const Audio sounds{U"invader_mp3/shot.mp3"};
 	double volume;
 	Vec2 bpos, beamV;
 	ColorF beamc;
@@ -175,14 +175,14 @@ private:
 	Size sz;
 	Texture explode, anim;
 	Vec2 apos;
-	const Audio sound{ U"inverder_mp3/explode.mp3" };
+	const Audio sound{ U"invader_mp3/explode.mp3" };
 	double volume;
 	ColorF color;
 public:
 	/// @brief コンストラクタ
 	/// @param _sz テクスチャのサイズ
-	HitAnim(Size _sz) : sz(_sz), explode(U"inverder_png/delete.png"), volume(0.5),
-		anim(U"inverder_png/delete_anim.png"), apos(-40, -40), color(Palette::Azure), fpsc_e(0), fpsc_p(0) {}
+	HitAnim(Size _sz) : sz(_sz), explode(U"invader_png/delete.png"), volume(0.5),
+		anim(U"invader_png/delete_anim.png"), apos(-40, -40), color(Palette::Azure), fpsc_e(0), fpsc_p(0) {}
 	/// @brief 敵被弾時アニメーション描画
 	/// @param[in] pos 被弾した敵座標
 	/// @param[in, out] flag アニメーションをtrueの時描画
@@ -253,9 +253,9 @@ public:
 class Enemies {
 private:
 	Array<Enemy> enemies;
-	Texture enm[6] = { (Texture)U"inverder_png/enemy1.png", (Texture)U"inverder_png/enemy1_anim.png",
-	(Texture)U"inverder_png/enemy2.png", (Texture)U"inverder_png/enemy2_anim.png",
-	(Texture)U"inverder_png/enemy3.png", (Texture)U"inverder_png/enemy3_anim.png" };
+	Texture enm[6] = { (Texture)U"invader_png/enemy1.png", (Texture)U"invader_png/enemy1_anim.png",
+	(Texture)U"invader_png/enemy2.png", (Texture)U"invader_png/enemy2_anim.png",
+	(Texture)U"invader_png/enemy3.png", (Texture)U"invader_png/enemy3_anim.png" };
 	ColorF color[3] = { Palette::Magenta, Palette::Aqua, Palette::Greenyellow };
 	double dx = 20;
 	double move_max;
@@ -592,7 +592,7 @@ public:
 	/// @param sz 描画サイズ
 	Walls(const Size& sz) {
 		for (int i = 0; i < 4; i++) {
-			walls << Wall(Image{ U"inverder_png/zangou.png" }, sz, Vec2(150 + (i * sz.x) + (i * 65), 480));
+			walls << Wall(Image{ U"invader_png/zangou.png" }, sz, Vec2(150 + (i * sz.x) + (i * 65), 480));
 		}
 	}
 	void Draw() {
@@ -639,7 +639,7 @@ public:
 	void reset(const Size& sz) {
 		walls.clear();
 		for (int i = 0; i < 4; i++) {
-			walls << Wall(Image{ U"inverder_png/zangou.png" }, sz, Vec2(150 + (i * sz.x) + (i * 65), 480));
+			walls << Wall(Image{ U"invader_png/zangou.png" }, sz, Vec2(150 + (i * sz.x) + (i * 65), 480));
 		}
 	}
 };
@@ -647,9 +647,9 @@ public:
 /// @brief ボーナスエネミーのクラス
 class Bonus {
 private:
-	Texture Ufo{ U"inverder_png/bonus_e.png" };
-	Texture break_anim{ U"inverder_png/bonus_break.png" };
-	const Audio sound{ U"inverder_mp3/fly.mp3", Loop::Yes};
+	Texture Ufo{ U"invader_png/bonus_e.png" };
+	Texture break_anim{ U"invader_png/bonus_break.png" };
+	const Audio sound{ U"invader_mp3/fly.mp3", Loop::Yes};
 	double volume;
 	Vec2 bpos, moveV, apos;
 	ColorF color;
@@ -764,7 +764,7 @@ void Enemies::hitw(Walls& wall) {
 //敵の弾の管理クラス
 class Eshot {
 private:
-	Texture bomb{U"inverder_png/enemybomb.png"};
+	Texture bomb{U"invader_png/enemybomb.png"};
 	Vec2 bpos, shotV;
 	ColorF color;
 	Size sz;	
